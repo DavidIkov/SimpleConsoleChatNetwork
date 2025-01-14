@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Site BuildName="Win32-make"
+	BuildStamp="20250114-1147-Experimental"
+	Name="LAPTOP-SF1I1QU8"
+	Generator="ctest-3.31.3"
+	CompilerName="C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/bin/clang.exe"
+	CompilerVersion="18.1.8"
+	OSName="Windows"
+	Hostname="LAPTOP-SF1I1QU8"
+	OSRelease=" Personal"
+	OSVersion=" (Build 19045)"
+	OSPlatform="AMD64"
+	Is64Bits="1"
+	VendorString="GenuineIntel"
+	VendorID="Intel Corporation"
+	FamilyID="6"
+	ModelID="14"
+	ModelName=""
+	ProcessorCacheSize="-1"
+	NumberOfLogicalCPU="4"
+	NumberOfPhysicalCPU="2"
+	TotalVirtualMemory="14053"
+	TotalPhysicalMemory="7909"
+	LogicalProcessorsPerPhysical="2"
+	ProcessorClockFrequency="2592"
+	>
+	<Testing>
+		<StartDateTime>Jan 14 14:47 RTZ 2 ([NON-UTF-8-BYTE-0xE7][NON-UTF-8-BYTE-0xE8][NON-UTF-8-BYTE-0xEC][NON-UTF-8-BYTE-0xE0])</StartDateTime>
+		<StartTestTime>1736855276</StartTestTime>
+		<TestList/>
+		<EndDateTime>Jan 14 14:47 RTZ 2 ([NON-UTF-8-BYTE-0xE7][NON-UTF-8-BYTE-0xE8][NON-UTF-8-BYTE-0xEC][NON-UTF-8-BYTE-0xE0])</EndDateTime>
+		<EndTestTime>1736855276</EndTestTime>
+		<ElapsedMinutes>0</ElapsedMinutes>
+	</Testing>
+</Site>
