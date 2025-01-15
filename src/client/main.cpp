@@ -28,11 +28,12 @@ int main(int argc, char** argv) {
         for (size_t i = 0; i < bytes;i++)
             std::cout << BufferForText[i];
         std::cout << std::endl;
-
         std::this_thread::sleep_for(5000ms);
 
         std::cout << "client is disconnecting! bye bye\n";
-    } else
+        ClientSocket.close();//not necessary, destructor already doing this
+    }
+    else
         std::cout << "client failed to connect :(\n";
     std::this_thread::sleep_for(5000ms);
 
