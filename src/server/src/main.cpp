@@ -26,6 +26,7 @@ void ResendAllData_Async(asio::ip::tcp::socket& socket) {
         for (size_t i = 0; i < bytes; i++)
             std::cout << BufferForText[i];
         std::cout << std::endl;
+
         socket.async_write_some(asio::buffer(BufferForText, bytes), [](asio::error_code ec, size_t bytes){std::cout << "Resended all of it\n";});
         ResendAllData_Async(socket);
         });
