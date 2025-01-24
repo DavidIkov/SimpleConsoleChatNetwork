@@ -76,7 +76,28 @@ namespace ConsoleCommandsNS {
                 }
                 if (fcom == nullptr) std::cout << "Command not found" << std::endl;
                 else {
+                    std::cout << "\x1b[?25l";//hide cursor
+                    char curScrollSymbol = '/';
+                    std::mutex scrollSymbolMutex;
+                    std::condition_variable scrollSymbolCV;
+                    bool stopScrollingSymbol = false;
+                    std::thread scrollingSymbolTh([&] {
+                        while (true) {
+                            std::unique_lock ul(scrollSymbolMutex);
+                            std::cout << curScrollSymbol << '\b';
+                            if (curScrollSymbol == '/') curScrollSymbol = '-';
+                            else if (curScrollSymbol == '-') curScrollSymbol = '\\';
+                            else if (curScrollSymbol == '\\') curScrollSymbol = '|';
+                            else if (curScrollSymbol == '|') curScrollSymbol = '/';
+                            using namespace std::chrono_literals;
+                            scrollSymbolCV.wait_for(ul, 300ms, [&] { return stopScrollingSymbol;});
+                            if (stopScrollingSymbol) { std::cout << " \b"; return; }
+                        }
+                        });
                     fcom->second();
+                    stopScrollingSymbol = true; scrollSymbolCV.notify_all();
+                    scrollingSymbolTh.join();
+                    std::cout << "\x1b[?25h";//show cursor
                 }
                 CommandBuffer.resize(0);
                 if (StopReading) return;
