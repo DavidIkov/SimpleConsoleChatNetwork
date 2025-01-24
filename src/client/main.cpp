@@ -71,6 +71,7 @@ int main(int argc, char** argv) {
     std::thread th = ConsoleCommandsNS::InitializeConsoleReadingThread();
 
     th.join();
+    IdleWork.~work();
     ContextThread.join();
     /*
 startOfConnecting:

@@ -18,6 +18,9 @@ namespace ConsoleCommandsNS {
             }},
             {"disconnect",[] {
                 Client.Disconnect();
+            }},
+            {"exit",[] {
+                StopReading = true;
             }}
         }; constexpr size_t CommandsAmount = sizeof(Commands) / sizeof(std::remove_array_pointer_t<decltype(Commands)>);
     }
@@ -59,6 +62,7 @@ namespace ConsoleCommandsNS {
                     fcom->second();
                 }
                 CommandBuffer.resize(0);
+                if (StopReading) return;
             }
             });
     }
