@@ -6,12 +6,27 @@ void ServerC::_StartReading(asio::ip::tcp::socket& socket) {
         if (ec) {
             if (ec == asio::error::eof) {
                 std::cout << "Client disconnected, removing socket" << std::endl;
+                socket.shutdown(socket.shutdown_both);
+                socket.close();
                 ActiveSockets.remove_if([&](auto& v)->bool {return &v == &socket;});
                 return;
             }
-            else if (ec == asio::error::operation_aborted || ec==asio::error::connection_aborted) return;
-            std::cout << "Error occured while reading data from server's socket. Exact error is: " <<
-                ec.value() << ' ' << ec.message() << std::endl;
+            else if (ec == asio::error::operation_aborted) {
+                std::cout << "Server closed socket, stopping reading" << std::endl;
+                return;
+            }
+            else if (ec == asio::error::connection_reset) {
+                std::cout << "Client reseted connection, removing socket" << std::endl;
+                socket.shutdown(socket.shutdown_both);
+                socket.close();
+                ActiveSockets.remove_if([&](auto& v)->bool {return &v == &socket;});
+                return;
+            }
+            else {
+                std::cout << "Unhandled error occured while reading data from server's socket " <<
+                    ec.value() << ' ' << ec.message() << std::endl; return;
+            }
+
         };
         OnRead(bytes);
         std::cout << "Server received message containing " << bytes << " bytes: ";
@@ -20,13 +35,24 @@ void ServerC::_StartReading(asio::ip::tcp::socket& socket) {
         std::cout << std::endl;
 
         socket.async_write_some(asio::buffer(ReadBuffer.Data, bytes), [](asio::error_code ec, size_t bytes){std::cout << "Resended all of it\n";});
+        using namespace std::chrono_literals; std::this_thread::sleep_for(100ms);
         _StartReading(socket);
         });
 }
 void ServerC::_AcceptConnection() {
     asio::ip::tcp::socket& socket = ActiveSockets.emplace_front(*AsioContext);
     ConnectionsAcceptor.async_accept(socket, [&](asio::error_code err) {
-        if (err && (err == asio::error::operation_aborted || err==asio::error::connection_aborted)) return;
+        if (err) {
+            if (err == asio::error::operation_aborted) {
+                std::cout << "Server closed acceptor" << std::endl;
+                return;
+            }
+            else {
+                std::cout << "Unhandled error occured while trying to accept connection " <<
+                    err.value() << ' ' << err.message() << std::endl;
+                return;
+            }
+        }
         std::cout << "Connected! " << socket.remote_endpoint().address().to_string() << std::endl;
         OnConnect();
         _StartReading(socket);
@@ -49,7 +75,11 @@ void ServerC::WriteToSocket(asio::ip::tcp::socket& socketToWrite, const ReadBuff
 void ServerC::Shutdown() {
     if (ConnectionsAcceptor.is_open()) {
         ConnectionsAcceptor.close();
-        for (auto& sockets : ActiveSockets) sockets.close();
+        for (auto& socket : ActiveSockets)
+            if (socket.is_open()) {
+                socket.shutdown(socket.shutdown_both);
+                socket.close();
+            }
         ActiveSockets.clear();
         std::cout << "Server shutdown" << std::endl;
     }
