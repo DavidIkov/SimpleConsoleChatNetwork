@@ -15,12 +15,6 @@ namespace ConsoleCommandsNS {
                 std::string ipStr = CommandBuffer.substr(fs + 1, ss - fs - 1);
                 std::string portStr = CommandBuffer.substr(ss + 1);
                 Client.Connect(asio::ip::tcp::endpoint(asio::ip::make_address(ipStr), std::stoi(portStr)));
-                /*
-                std::lock_guard lg(EventsNS::Mutex);
-                EventsNS::EventsQueue.emplace(EventsNS::EventDataS{ EventsNS::TypesE::ConnectToServer,
-                    EventsNS::ConnectToServerS{ ClientSocket,asio::ip::tcp::endpoint(asio::ip::make_address(ipStr), std::stoi(portStr)) } });
-                EventsNS::CV.notify_all();
-                */
             }},
             {"disconnect",[] {
                 Client.Disconnect();
@@ -45,7 +39,11 @@ namespace ConsoleCommandsNS {
                     }
                     else {
                         std::cout << ch;
-                        CommandBuffer.push_back(ch);
+                        if (ch == '\b') {
+                            if (!CommandBuffer.empty()) {
+                                CommandBuffer.pop_back(); std::cout << " \b";
+                            }
+                        } else CommandBuffer.push_back(ch);
                     }
                 }
                 std::remove_array_pointer_t<decltype(ConsoleCommandsNS::CommandsNS::Commands)>* fcom = nullptr;
