@@ -9,15 +9,12 @@ protected:
     asio::ip::tcp::acceptor ConnectionsAcceptor;
     //first socket is not active, it is waiting for connection
     std::list<asio::ip::tcp::socket> ActiveSockets;
-public:
-    struct ReadBufferS{ char* Data; size_t Size; };
-protected:
-    ReadBufferS ReadBuffer;
+    std::string_view ReadBuffer;
 private:
     void _StartReading(asio::ip::tcp::socket& socket);
     void _AcceptConnection();
 public:
-    ServerC(asio::io_context& asioContext, asio::ip::port_type port, ReadBufferS readBuffer);
+    ServerC(asio::io_context& asioContext, asio::ip::port_type port, std::string_view readBuffer);
     ServerC(const ServerC&) = delete;
     ServerC(ServerC&&) = default;
     virtual ~ServerC();
@@ -30,6 +27,6 @@ protected:
     inline virtual void OnDisconnect(asio::ip::tcp::socket& disconectedSocket) {};
     inline virtual void OnRead(size_t bytesRead) {};
 public:
-    void WriteToSocket(asio::ip::tcp::socket& socketToWrite, const ReadBufferS& data);
+    void WriteToSocket(asio::ip::tcp::socket& socketToWrite, const std::string_view& data);
     void Shutdown();
 };

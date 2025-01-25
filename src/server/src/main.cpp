@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
     asio::io_context::work idleWork(serverContext);
     std::thread serverThread([&] { serverContext.run(); });
     char buffer[100];
-    ServerC server(serverContext, 16120, ServerC::ReadBufferS{ buffer, 100 });
+    ServerC server(serverContext, 16120, std::string_view(buffer, 100));
     while (true) {
         std::string input;
         std::cin >> input;

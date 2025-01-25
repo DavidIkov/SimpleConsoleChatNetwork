@@ -2,7 +2,7 @@
 #include"iostream"
 
 void ServerC::_StartReading(asio::ip::tcp::socket& socket) {
-    socket.async_read_some(asio::buffer(ReadBuffer.Data, ReadBuffer.Size), [&](asio::error_code ec, size_t bytes) {
+    socket.async_read_some(asio::buffer((char*)ReadBuffer.data(), ReadBuffer.size()), [&](asio::error_code ec, size_t bytes) {
         if (ec) {
             if (ec == asio::error::eof) {
                 std::cout << "Client disconnected, removing socket" << std::endl;
@@ -31,10 +31,10 @@ void ServerC::_StartReading(asio::ip::tcp::socket& socket) {
         OnRead(bytes);
         std::cout << "Server received message containing " << bytes << " bytes: ";
         for (size_t i = 0; i < bytes; i++)
-            std::cout << ReadBuffer.Data[i];
+            std::cout << ReadBuffer[i];
         std::cout << std::endl;
 
-        socket.async_write_some(asio::buffer(ReadBuffer.Data, bytes), [](asio::error_code ec, size_t bytes){std::cout << "Resended all of it\n";});
+        socket.async_write_some(asio::buffer((char*)ReadBuffer.data(), bytes), [](asio::error_code ec, size_t bytes){std::cout << "Resended all of it\n";});
         using namespace std::chrono_literals; std::this_thread::sleep_for(100ms);
         _StartReading(socket);
         });
@@ -60,7 +60,7 @@ void ServerC::_AcceptConnection() {
         });
 
 }
-ServerC::ServerC(asio::io_context& asioContext, asio::ip::port_type port, ReadBufferS readBuffer) :
+ServerC::ServerC(asio::io_context& asioContext, asio::ip::port_type port, std::string_view readBuffer) :
     AsioContext(&asioContext), ConnectionsAcceptor(asioContext, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)),
     ReadBuffer(readBuffer) {
     std::cout << "Server is up" << std::endl;
@@ -69,8 +69,15 @@ ServerC::ServerC(asio::io_context& asioContext, asio::ip::port_type port, ReadBu
 ServerC::~ServerC() {
     Shutdown();
 }
-void ServerC::WriteToSocket(asio::ip::tcp::socket& socketToWrite, const ReadBufferS& data) {
-    socketToWrite.async_write_some(asio::buffer(data.Data, data.Size), [](asio::error_code,size_t){});
+void ServerC::WriteToSocket(asio::ip::tcp::socket& socketToWrite, const std::string_view& data) {
+    if (!data.empty())
+        socketToWrite.async_write_some(asio::buffer((char*)data.data(), data.size()), [&](asio::error_code ec, size_t bytesWritten) {
+            if (ec) {
+                std::cout << "Failed to write to socket with error " << ec.value() << ' ' << ec.message()
+                    << std::endl; return;
+            }
+            WriteToSocket(socketToWrite, std::string_view(data.data() + bytesWritten, data.size() - bytesWritten));
+        });
 }
 void ServerC::Shutdown() {
     if (ConnectionsAcceptor.is_open()) {
