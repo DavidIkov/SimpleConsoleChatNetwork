@@ -53,3 +53,13 @@ void ClientC::OnRead(size_t bytesRead) {
     for (size_t i = 0;i < bytesRead;i++) std::cout << WriteBuffer[i];
     std::cout << std::endl;
 }
+void ClientC::Write(const std::string_view& data) {
+    if (!data.empty())
+        Socket.async_write_some(asio::buffer((char*)data.data(), data.size()), [&](asio::error_code ec, size_t bytesWritten) {
+            if (ec) {
+                std::cout << PutBeforeLastString << "Failed to write to socket with error " << ec.value() << ' ' << ec.message()
+                    << std::endl << RestoreCursorPos; return;
+            }
+            Write(std::string_view(data.data() + bytesWritten, data.size() - bytesWritten));
+        });
+}

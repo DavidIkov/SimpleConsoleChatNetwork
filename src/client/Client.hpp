@@ -15,4 +15,6 @@ protected:
     inline virtual void OnConnect() {};
     inline virtual void OnDisconnect() {};
     virtual void OnRead(size_t bytesRead);
+public:
+    void Write(const std::string_view& data);
 };
