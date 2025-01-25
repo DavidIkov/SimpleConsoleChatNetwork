@@ -10,8 +10,9 @@
 #include"RemoveArrayPointer.hpp"
 #include"Client.hpp"
 
+char ReadingBuffer[1024];
 asio::io_context CurContext;
-ClientC Client(CurContext);
+ClientC Client(CurContext, std::string_view(ReadingBuffer, 1024));
 
 #include"ConsoleCommands.hpp"
 
