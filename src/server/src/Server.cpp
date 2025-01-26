@@ -13,8 +13,10 @@ void ServerC::_StartReading(ClientS& client) {
                 return;
             }
             else if (ec == asio::error::operation_aborted) {
-                std::cout << PutBeforeLastString << "Server closed socket, stopping reading" << std::endl << RestoreCursorPos;
-                OnDisconnect(client);
+                std::cout << PutBeforeLastString << "Server forcefully closed socket, stopping reading" << std::endl << RestoreCursorPos;
+                //no need for shutdown and close and removing of socket since this code will happen only on shutdown, 
+                //so its done forcefully and i can rely on caller to do allat
+                    OnDisconnect(client);
                 return;
             }
             else if (ec == asio::error::connection_reset) {
@@ -28,7 +30,11 @@ void ServerC::_StartReading(ClientS& client) {
             else {
                 std::cout << PutBeforeLastString << "Unhandled error occured in socket, stopping reading " <<
                     ec.value() << ' ' << ec.message() << std::endl << RestoreCursorPos;
-                OnDisconnect(client); return;
+                client.Socket.shutdown(client.Socket.shutdown_both);
+                client.Socket.close();
+                OnDisconnect(client);
+                ActiveClients.remove_if([&](auto& v)->bool {return &v.Socket == &client.Socket;});
+                return;
             }
         }
         OnRead(bytes);
