@@ -16,7 +16,7 @@ void ServerC::_StartReading(ClientS& client) {
                 std::cout << PutBeforeLastString << "Server forcefully closed socket, stopping reading" << std::endl << RestoreCursorPos;
                 //no need for shutdown and close and removing of socket since this code will happen only on shutdown, 
                 //so its done forcefully and i can rely on caller to do allat
-                    OnDisconnect(client);
+                OnDisconnect(client);
                 return;
             }
             else if (ec == asio::error::connection_reset) {

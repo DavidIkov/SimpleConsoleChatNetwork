@@ -1,6 +1,6 @@
 #pragma once
 #include"AsioInclude.hpp"
-#include"ConsoleManager.hpp"
+#include"ConsoleFixedSizeInput.hpp"
 #include"ConsoleOutFormatting.hpp"
 #include<string>
 #include<mutex>
@@ -10,6 +10,12 @@ namespace ConsoleCommandsNS {
     bool StopReading = false;
     namespace CommandsNS {
         std::pair<std::string_view, void(*)()> Commands[] = {
+            {"list clients",[] {
+                auto const& clients = DataForCommands.Server->gClients();
+                for (auto& client = ++clients.begin();client != clients.end();++client) {
+                    std::coutclient->Socket.remote_endpoint().address().to_string()
+                }
+            }},
             {"connect",[] {
                 size_t fs = CommandBuffer.find_first_of(' ');
                 size_t ss = CommandBuffer.find_first_of(' ', fs + 1);
@@ -41,11 +47,11 @@ namespace ConsoleCommandsNS {
 
     
     std::thread InitializeConsoleReadingThread() {
-        ConsoleManagerNS::EnableSettings();
+        ConsoleFixedSizeInputC _;
         return std::thread([&] {
             while (true) {
                 while (true) {
-                    char ch = ConsoleManagerNS::ReadChar();
+                    char ch = ConsoleFixedSizeInputC::ReadChar();
                     std::lock_guard ul(Mutex);
                     if (StopReading) {
                         std::cout << std::endl;
@@ -57,11 +63,11 @@ namespace ConsoleCommandsNS {
                     else {
                         if (ch == '\b'){
                             if (!CommandBuffer.empty()) {
-                                CommandBuffer.pop_back(); std::cout << "\b \b" << std::flush;
+                                CommandBuffer.pop_back(); std::cout << "\b \b";
                             }
                         }
                         else {
-                            std::cout << ch << std::flush;
+                            std::cout << ch;
                             CommandBuffer.push_back(ch);
                         }
                     }
@@ -76,6 +82,7 @@ namespace ConsoleCommandsNS {
                 }
                 if (fcom == nullptr) std::cout << "Command not found" << std::endl;
                 else {
+                    std::cout << "\x1b[?25l";//hide cursor
                     char curScrollSymbol = '/';
                     std::mutex scrollSymbolMutex;
                     std::condition_variable scrollSymbolCV;
@@ -83,19 +90,20 @@ namespace ConsoleCommandsNS {
                     std::thread scrollingSymbolTh([&] {
                         while (true) {
                             std::unique_lock ul(scrollSymbolMutex);
-                            std::cout << '\b' << curScrollSymbol << std::flush;
+                            std::cout << curScrollSymbol << '\b';
                             if (curScrollSymbol == '/') curScrollSymbol = '-';
                             else if (curScrollSymbol == '-') curScrollSymbol = '\\';
                             else if (curScrollSymbol == '\\') curScrollSymbol = '|';
                             else if (curScrollSymbol == '|') curScrollSymbol = '/';
                             using namespace std::chrono_literals;
                             scrollSymbolCV.wait_for(ul, 300ms, [&] { return stopScrollingSymbol;});
-                            if (stopScrollingSymbol) { std::cout << "\b \b" << std::flush; return; }
+                            if (stopScrollingSymbol) { std::cout << " \b"; return; }
                         }
                         });
                     fcom->second();
                     stopScrollingSymbol = true; scrollSymbolCV.notify_all();
                     scrollingSymbolTh.join();
+                    std::cout << "\x1b[?25h";//show cursor
                 }
                 CommandBuffer.resize(0);
                 if (StopReading) return;

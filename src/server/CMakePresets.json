@@ -3,9 +3,9 @@
     "version": 8,
     "configurePresets": [
         {
-            "name": "debug_config",
+            "name": "debug",
             "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/build/${presetName}",
+            "binaryDir": "${sourceDir}/builds/${presetName}",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/bin/clang.exe",
                 "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/bin/clang.exe",
@@ -13,6 +13,19 @@
                 "CMAKE_C_FLAGS": "-m64",
                 "CMAKE_CXX_FLAGS": "-m64"
             }
+        },
+        {
+            "name": "release",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/builds/${presetName}",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/bin/clang.exe",
+                "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/bin/clang.exe",
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_FLAGS": "-m64",
+                "CMAKE_CXX_FLAGS": "-m64"
+            }
         }
+
     ]
 }

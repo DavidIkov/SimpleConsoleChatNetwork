@@ -1,5 +1,7 @@
 #include"ConsoleFixedSizeInput.hpp"
 #include<string>
+#include<iostream>
+
 bool ConsoleFixedSizeInputC::Exists = false;
 #ifdef _WIN32
 #include"Windows.h"
@@ -16,7 +18,7 @@ ConsoleFixedSizeInputC::ConsoleFixedSizeInputC() {
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     DWORD mode = 0;
     GetConsoleMode(hStdin, &mode);
-    SetConsoleMode(hStdin, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+    SetConsoleMode(hStdin, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT) | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 #elif defined __LINUX__
     termios tty;
     tcgetattr(STDIN_FILENO, &tty);
@@ -25,6 +27,8 @@ ConsoleFixedSizeInputC::ConsoleFixedSizeInputC() {
 #else
 #error unknown platform
 #endif
+    std::setvbuf(stdout, nullptr, _IOFBF, 1024);//enable requirement to flush before anything appears in console
+
 }
 char ConsoleFixedSizeInputC::ReadChar() {
 #ifdef _WIN32
