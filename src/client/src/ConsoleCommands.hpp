@@ -1,7 +1,7 @@
 #pragma once
 #include"AsioInclude.hpp"
+
 #include"ConsoleManager.hpp"
-#include"ConsoleOutFormatting.hpp"
 #include<string>
 #include<mutex>
 namespace ConsoleCommandsNS {
@@ -41,11 +41,11 @@ namespace ConsoleCommandsNS {
 
     
     std::thread InitializeConsoleReadingThread() {
-        ConsoleManagerNS::EnableSettings();
+        ConsoleManagerNS::Initialize();
         return std::thread([&] {
             while (true) {
                 while (true) {
-                    char ch = ConsoleManagerNS::ReadChar();
+                    char ch = ConsoleManagerNS::InputNS::ReadChar();
                     std::lock_guard ul(Mutex);
                     if (StopReading) {
                         std::cout << std::endl;
