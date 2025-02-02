@@ -21,7 +21,6 @@ int main(int argc, char** argv) {
     std::thread th1([&] {
         auto& proc1 = ConsoleManagerNS::OutputNS::CreateOutputtingProcess();
         while (true) {
-            //std::this_thread::sleep_for(std::chrono::seconds(2));
             std::this_thread::sleep_for(std::chrono::milliseconds((long long)((std::rand() & 0xf) / (float)0xf * 2123.f)));
             proc1 << "thread 1 output!";
             ConsoleManagerNS::OutputNS::UpdateOutputCV.notify_all();
@@ -32,7 +31,6 @@ int main(int argc, char** argv) {
     std::thread th2([&] {
         auto& proc = ConsoleManagerNS::OutputNS::CreateOutputtingProcess();
         while (true) {
-            //std::this_thread::sleep_for(std::chrono::seconds(2));
             std::this_thread::sleep_for(std::chrono::milliseconds((long long)((std::rand() & 0xf) / (float)0xf * 2123.f)));
             proc << "thread 2 output!";
             ConsoleManagerNS::OutputNS::UpdateOutputCV.notify_all();

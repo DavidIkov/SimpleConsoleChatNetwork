@@ -22,17 +22,19 @@ namespace ConsoleManagerNS {
     namespace OutputNS {
         inline std::condition_variable UpdateOutputCV;
         struct OutputtingProcessS {
+            std::mutex ProcMutex;
             //position of last output for a process, relative to bottom empty line after all of output
             int PosX = 0, PosY = 0;
             std::string Buffer;
-            std::mutex BufferMutex;
+            bool Outputting = false;
+            std::condition_variable OutputEndedCV;
             bool operator==(const OutputtingProcessS& proc) const noexcept { return &proc == this; }
             template<typename T> OutputtingProcessS& operator<<(T&& v) {
-                std::lock_guard lg(BufferMutex);
+                std::lock_guard lg(ProcMutex);
                 Buffer.operator+=(std::forward<T>(v));
                 return *this;
             }
-            template<> OutputtingProcessS& operator<<<void(*const&)()>(void(*const&v)()) {
+            template<> OutputtingProcessS& operator<<<void(&)()>(void(&v)()) {
                 v(); return *this;
             }
             static void FlushOutput() {
@@ -55,7 +57,7 @@ namespace ConsoleManagerNS {
         public:
             OutputtingProcessWrapperC() :proc(CreateOutputtingProcess()) {};
             ~OutputtingProcessWrapperC() { RemoveOutputtingProcess(proc); }
-            static constexpr decltype(&OutputtingProcessS::FlushOutput) FlushOutput = &OutputtingProcessS::FlushOutput;
+            static constexpr void(&FlushOutput)() = OutputtingProcessS::FlushOutput;
             template<typename T> OutputtingProcessWrapperC& operator<<(T&& v) {
                 proc.operator<<(std::forward<T>(v)); return *this;
             }

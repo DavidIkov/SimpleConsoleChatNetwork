@@ -11,7 +11,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${RES_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${RES_DIR}/asio-1.30.2/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${RES_DIR}/ConsoleManager)
 
-target_link_directories(${PROJECT_NAME} PRIVATE ${RES_DIR}/ConsoleManager/builds/debug)
+add_subdirectory(${RES_DIR}/ConsoleManager ConsoleManagerBuild)
+target_link_directories(${PROJECT_NAME} PRIVATE ConsoleManagerBuild)
 target_link_libraries(${PROJECT_NAME} ConsoleManager)
 
 include(CTest)

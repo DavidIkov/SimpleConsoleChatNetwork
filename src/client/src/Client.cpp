@@ -15,7 +15,7 @@ void ClientC::_StartReading_Async() {
             else ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC() << "Unhandled error occured while reading "
                 << ec.value() << ' ' << ec.message()
                 << ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC::FlushOutput;
-                return;
+            return;
         }
         OnRead(bytes);
         _StartReading_Async();
