@@ -11,6 +11,7 @@ namespace ConsoleCommandsNS {
     namespace CommandsNS {
         std::pair<std::string_view, void(*)(ConsoleManagerNS::OutputNS::OutputtingProcessC&)> Commands[] = {
             {"connect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc){
+                ClientC::OutputtingProcPtrWrapperC clientOutProcWrap(Client, outProc);
                 size_t fs = CommandBuffer.find_first_of(' ');
                 size_t ss = CommandBuffer.find_first_of(' ', fs + 1);
                 if (fs == std::string::npos || ss == std::string::npos) {
@@ -30,7 +31,8 @@ namespace ConsoleCommandsNS {
                     outProc << "could not convert port string to port" << outProc.EndLine; return;
                 }
             }},
-            {"disconnect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&) {
+            {"disconnect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) {
+                ClientC::OutputtingProcPtrWrapperC clientOutProcWrap(Client, outProc);
                 Client.Disconnect();
             }},
             {"exit",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&){
