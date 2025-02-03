@@ -18,22 +18,6 @@ ClientC Client(CurContext, std::string_view(ReadingBuffer, 1024));
 
 int main(int argc, char** argv) {
     ConsoleManagerNS::Initialize();
-    std::thread th1([&] {
-        ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC proc;
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::milliseconds((long long)((std::rand() & 0xf) / (float)0xf * 2123.f)));
-            proc << "thread 1 output!" << proc.FlushOutput;
-        }
-        });
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    std::thread th2([&] {
-        ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC proc;
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::milliseconds((long long)((std::rand() & 0xf) / (float)0xf * 2123.f)));
-            proc << "thread 2 output!" << proc.FlushOutput;
-        }
-        });
-    th1.join(), th2.join();
     asio::error_code CurErrorCode;
     asio::io_context::work IdleWork(CurContext);
     std::thread ContextThread([&] {CurContext.run();});
@@ -41,6 +25,7 @@ int main(int argc, char** argv) {
     std::thread th = ConsoleCommandsNS::InitializeConsoleReadingThread();
 
     th.join();
+    ConsoleManagerNS::OutputNS::Terminate();
     CurContext.stop();
     IdleWork.~work();
     ContextThread.join();

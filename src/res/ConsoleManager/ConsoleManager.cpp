@@ -98,12 +98,20 @@ void ConsoleManagerNS::OutputNS::OutputThreadFunc() {
                             procIter2->PosY++;
                     }
                     char ch = proc.Buffer[i];
-                    if (ch < 32 || ch > 126) ch = '?';
-                    std::cout << ch;
-                    if (++proc.PosX == consoleSizeX) {
-                        proc.PosY--;
-                        proc.PosX = 0;
-                        std::cout << "\n\r";
+                    if ((ch < 32 || ch > 126) && ch != '\n' && ch != '\b') ch = '?';
+                    if (ch != '\n' && ch != '\b') {
+                        std::cout << ch;
+                        if (++proc.PosX == consoleSizeX) {
+                            proc.PosY--;
+                            proc.PosX = 0;
+                            std::cout << "\n\r";
+                        }
+                    }
+                    else if (ch == '\n') {
+                        proc.PosY--; proc.PosX = 0; std::cout << "\n\r";
+                    }
+                    else if (ch == '\b' && proc.PosX != 0) {
+                        std::cout << '\b'; proc.PosX--;
                     }
                 }
                 std::cout << std::flush;
@@ -124,15 +132,17 @@ std::thread ConsoleManagerNS::OutputNS::OutputThread = std::thread(ConsoleManage
 
 auto ConsoleManagerNS::OutputNS::CreateOutputtingProcess()->OutputtingProcessC& { return ConsoleManagerNS::OutputNS::OutputtingProcesses.emplace_back(); }
 void ConsoleManagerNS::OutputNS::RemoveOutputtingProcess(OutputtingProcessC& proc) {
-    std::unique_lock ul(proc.ProcMutex);
-    if (!proc.Buffer.empty()) {
-        //looks like calling remove happened too quickly, before outputting thread was able to actually output
-        //calling flush cuz what if someone forgot to flush before calling this function, and if outputting
-        //thread is not outputting at the moment fo aclling this function, this function will just freeze until
-        //someones other flush
-        proc << OutputtingProcessC::FlushOutput;
-        //now just waiting for buffer to finish outputting
-        proc.OutputEndedCV.wait(ul, [&]()->bool {return proc.Buffer.empty() && !proc.Outputting;});
+    {
+        std::unique_lock ul(proc.ProcMutex);
+        if (!proc.Buffer.empty()) {
+            //looks like calling remove happened too quickly, before outputting thread was able to actually output
+            //calling flush cuz what if someone forgot to flush before calling this function, and if outputting
+            //thread is not outputting at the moment of calling this function, this function will just freeze until
+            //someones other flush
+            proc << OutputtingProcessC::FlushOutput;
+            //now just waiting for buffer to finish outputting
+            proc.OutputEndedCV.wait(ul, [&]()->bool {return proc.Buffer.empty() && !proc.Outputting;});
+        }
     }
     ConsoleManagerNS::OutputNS::OutputtingProcesses.remove(proc);
 }

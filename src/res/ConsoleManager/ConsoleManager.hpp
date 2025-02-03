@@ -41,11 +41,20 @@ namespace ConsoleManagerNS {
                 Buffer.operator+=(std::forward<T>(v));
                 return *this;
             }
-            template<> OutputtingProcessC& operator<<<void(&)()>(void(&v)()) {
-                v(); return *this;
+            template<> OutputtingProcessC& operator<<<void(&)(OutputtingProcessC&)>(void(&v)(OutputtingProcessC&)) {
+                v(*this); return *this;
             }
-            static void FlushOutput() {
+            //text may appear before flushing happened. calling flush makes so text will appear as soon as possible
+            static void FlushOutput(OutputtingProcessC& proc) {
                 UpdateOutputCV.notify_all();
+            }
+            //dosent flush output, just new line
+            static void NewLine(OutputtingProcessC& proc) {
+                proc << "\n";
+            }
+            //calls NewLine and FlushOutput
+            static void EndLine(OutputtingProcessC& proc) {
+                proc << NewLine << FlushOutput;
             }
         }; friend OutputtingProcessC;
     private:
@@ -67,10 +76,13 @@ namespace ConsoleManagerNS {
         public:
             OutputtingProcessWrapperC() :Proc(CreateOutputtingProcess()) {};
             ~OutputtingProcessWrapperC() { RemoveOutputtingProcess(Proc); }
-            static constexpr void(&FlushOutput)() = OutputtingProcessC::FlushOutput;
+            static constexpr decltype(OutputtingProcessC::FlushOutput)& FlushOutput = OutputtingProcessC::FlushOutput;
+            static constexpr decltype(OutputtingProcessC::NewLine)& NewLine = OutputtingProcessC::NewLine;
+            static constexpr decltype(OutputtingProcessC::EndLine)& EndLine = OutputtingProcessC::EndLine;
             template<typename T> OutputtingProcessWrapperC& operator<<(T&& v) {
                 Proc.operator<<(std::forward<T>(v)); return *this;
             }
+            operator OutputtingProcessC& () { return Proc; }
         };
     };
 }

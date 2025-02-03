@@ -9,12 +9,12 @@ namespace ConsoleCommandsNS {
     std::string CommandBuffer;
     bool StopReading = false;
     namespace CommandsNS {
-        std::pair<std::string_view, void(*)()> Commands[] = {
-            {"connect",[] {
+        std::pair<std::string_view, void(*)(ConsoleManagerNS::OutputNS::OutputtingProcessC&)> Commands[] = {
+            {"connect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc){
                 size_t fs = CommandBuffer.find_first_of(' ');
                 size_t ss = CommandBuffer.find_first_of(' ', fs + 1);
                 if (fs == std::string::npos || ss == std::string::npos) {
-                    std::cout << "wrong command formatting, should be \"connect ip port\"" << std::endl;
+                    outProc << "wrong command formatting, should be \"connect ip port\"" << outProc.EndLine;
                     return;
                 }
                 std::string ipStr = CommandBuffer.substr(fs + 1, ss - fs - 1);
@@ -23,17 +23,17 @@ namespace ConsoleCommandsNS {
                     int port = std::stoi(portStr);
                     asio::error_code ec;
                     auto ip = asio::ip::make_address(ipStr, ec);
-                    if (ec) { std::cout << "could not convert ip string to ip" << std::endl; return; }
+                    if (ec) { outProc << "could not convert ip string to ip" << outProc.EndLine; return; }
                     Client.Connect(asio::ip::tcp::endpoint(ip, port));
                 }
                 catch (std::invalid_argument&) {
-                    std::cout << "could not convert port string to port" << std::endl;; return;
+                    outProc << "could not convert port string to port" << outProc.EndLine; return;
                 }
             }},
-            {"disconnect",[] {
+            {"disconnect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&) {
                 Client.Disconnect();
             }},
-            {"exit",[] {
+            {"exit",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&){
                 StopReading = true;
             }}
         }; constexpr size_t CommandsAmount = sizeof(Commands) / sizeof(std::remove_array_pointer_t<decltype(Commands)>);
@@ -44,24 +44,26 @@ namespace ConsoleCommandsNS {
         ConsoleManagerNS::Initialize();
         return std::thread([&] {
             while (true) {
+                ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC outProc;
                 while (true) {
                     char ch = ConsoleManagerNS::InputNS::ReadChar();
                     std::lock_guard ul(Mutex);
                     if (StopReading) {
-                        std::cout << std::endl;
+                        outProc << outProc.EndLine;
                         return;
                     }
                     if (ch == '\r') {
-                        std::cout << std::endl; break;
+                        outProc << outProc.EndLine;
+                        break;
                     }
                     else {
                         if (ch == '\b'){
                             if (!CommandBuffer.empty()) {
-                                CommandBuffer.pop_back(); std::cout << "\b \b" << std::flush;
+                                CommandBuffer.pop_back(); outProc << "\b \b" << outProc.FlushOutput;
                             }
                         }
                         else {
-                            std::cout << ch << std::flush;
+                            outProc << ch << outProc.FlushOutput;
                             CommandBuffer.push_back(ch);
                         }
                     }
@@ -74,8 +76,9 @@ namespace ConsoleCommandsNS {
                         break;
                     }
                 }
-                if (fcom == nullptr) std::cout << "Command not found" << std::endl;
+                if (fcom == nullptr) outProc << "Command not found" << outProc.EndLine;
                 else {
+                    /*
                     char curScrollSymbol = '/';
                     std::mutex scrollSymbolMutex;
                     std::condition_variable scrollSymbolCV;
@@ -92,10 +95,10 @@ namespace ConsoleCommandsNS {
                             scrollSymbolCV.wait_for(ul, 300ms, [&] { return stopScrollingSymbol;});
                             if (stopScrollingSymbol) { std::cout << "\b \b" << std::flush; return; }
                         }
-                        });
-                    fcom->second();
-                    stopScrollingSymbol = true; scrollSymbolCV.notify_all();
-                    scrollingSymbolTh.join();
+                        });*/
+                    fcom->second(outProc);
+                    //stopScrollingSymbol = true; scrollSymbolCV.notify_all();
+                    //scrollingSymbolTh.join();
                 }
                 CommandBuffer.resize(0);
                 if (StopReading) return;
