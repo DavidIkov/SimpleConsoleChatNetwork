@@ -19,48 +19,58 @@ namespace ConsoleManagerNS {
     }
     //focuses on multithreaded output
     //todo fix bug with console resizing. offsets dont update
-    namespace OutputNS {
-        inline std::condition_variable UpdateOutputCV;
-        struct OutputtingProcessS {
-            std::mutex ProcMutex;
+    //this should be threaded as namespace, not a class
+    class OutputNS {
+        static std::condition_variable UpdateOutputCV;
+        static void OutputThreadFunc();
+    public:
+        class OutputtingProcessC {
+            friend OutputNS;
+            friend void OutputNS::OutputThreadFunc();
+        protected:
             //position of last output for a process, relative to bottom empty line after all of output
             int PosX = 0, PosY = 0;
+            std::mutex ProcMutex;
             std::string Buffer;
             bool Outputting = false;
             std::condition_variable OutputEndedCV;
-            bool operator==(const OutputtingProcessS& proc) const noexcept { return &proc == this; }
-            template<typename T> OutputtingProcessS& operator<<(T&& v) {
+        public:
+            bool operator==(const OutputtingProcessC& proc) const noexcept { return &proc == this; }// ik ik
+            template<typename T> OutputtingProcessC& operator<<(T&& v) {
                 std::lock_guard lg(ProcMutex);
                 Buffer.operator+=(std::forward<T>(v));
                 return *this;
             }
-            template<> OutputtingProcessS& operator<<<void(&)()>(void(&v)()) {
+            template<> OutputtingProcessC& operator<<<void(&)()>(void(&v)()) {
                 v(); return *this;
             }
             static void FlushOutput() {
                 UpdateOutputCV.notify_all();
             }
-        };
-        inline std::mutex _OutputMutex;
-        inline std::list<OutputtingProcessS> _OutputtingProcesses;
+        }; friend OutputtingProcessC;
+    private:
+        static std::mutex OutputMutex;
+        static std::list<OutputtingProcessC> OutputtingProcesses;
         //position relative to bottom empty line after all of output
-        inline int _CursorPosX = 0, _CursorPosY = 0;
+        static int CursorPosX, CursorPosY;//0,0
 
-        inline bool _StopOutputThread = false;
-        extern std::thread _OutputThread;
-        OutputtingProcessS& CreateOutputtingProcess();
-        void RemoveOutputtingProcess(OutputtingProcessS& proc);
-        void Terminate();
+        static bool StopOutputThread;//false
+
+        static std::thread OutputThread;
+    public:
+        OutputNS() = delete;
+        static OutputtingProcessC& CreateOutputtingProcess();
+        static void RemoveOutputtingProcess(OutputtingProcessC& proc);
+        static void Terminate();
         class OutputtingProcessWrapperC {
-        private:
-            OutputtingProcessS& proc;
+            OutputtingProcessC& Proc;
         public:
-            OutputtingProcessWrapperC() :proc(CreateOutputtingProcess()) {};
-            ~OutputtingProcessWrapperC() { RemoveOutputtingProcess(proc); }
-            static constexpr void(&FlushOutput)() = OutputtingProcessS::FlushOutput;
+            OutputtingProcessWrapperC() :Proc(CreateOutputtingProcess()) {};
+            ~OutputtingProcessWrapperC() { RemoveOutputtingProcess(Proc); }
+            static constexpr void(&FlushOutput)() = OutputtingProcessC::FlushOutput;
             template<typename T> OutputtingProcessWrapperC& operator<<(T&& v) {
-                proc.operator<<(std::forward<T>(v)); return *this;
+                Proc.operator<<(std::forward<T>(v)); return *this;
             }
         };
-    }
+    };
 }

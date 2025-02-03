@@ -64,26 +64,27 @@ unsigned  ConsoleManagerNS::gConsoleColumnsAmount() {
 #error unknown platform
 #endif
 }
-std::thread ConsoleManagerNS::OutputNS::_OutputThread = std::thread([] {
+
+void ConsoleManagerNS::OutputNS::OutputThreadFunc() {
     while (true) {
-        std::unique_lock ul(_OutputMutex);
+        std::unique_lock ul(ConsoleManagerNS::OutputNS::OutputMutex);
         UpdateOutputCV.wait(ul, [&]()->bool {
-            if (_StopOutputThread) return true;
-            for (auto& it : _OutputtingProcesses) if (!it.Buffer.empty()) return true;
+            if (ConsoleManagerNS::OutputNS::StopOutputThread) return true;
+            for (auto& it : ConsoleManagerNS::OutputNS::OutputtingProcesses) if (!it.Buffer.empty()) return true;
             return false;
             });
-        if (_StopOutputThread) return;
+        if (ConsoleManagerNS::OutputNS::StopOutputThread) return;
         unsigned consoleSizeX = gConsoleColumnsAmount();
-        for (auto procIter = _OutputtingProcesses.begin();procIter != _OutputtingProcesses.end();procIter++)
+        for (auto procIter = ConsoleManagerNS::OutputNS::OutputtingProcesses.begin();procIter != ConsoleManagerNS::OutputNS::OutputtingProcesses.end();procIter++)
             if (!procIter->Buffer.empty()) {
                 auto& proc = *procIter;
                 std::lock_guard lg(proc.ProcMutex);
                 proc.Outputting = true;
                 {//move cursor
-                    if (_CursorPosX > proc.PosX) std::cout << "\x1b[" << std::to_string(_CursorPosX - proc.PosX) << 'D';
-                    else if (_CursorPosX < proc.PosX) std::cout << "\x1b[" << std::to_string(proc.PosX - _CursorPosX) << 'C';
-                    if (_CursorPosY > proc.PosY) std::cout << "\x1b[" << std::to_string(_CursorPosY - proc.PosY) << 'B';
-                    else if (_CursorPosY < proc.PosY) std::cout << "\x1b[" << std::to_string(proc.PosY - _CursorPosY) << 'A';
+                    if (CursorPosX > proc.PosX) std::cout << "\x1b[" << std::to_string(CursorPosX - proc.PosX) << 'D';
+                    else if (CursorPosX < proc.PosX) std::cout << "\x1b[" << std::to_string(proc.PosX - CursorPosX) << 'C';
+                    if (CursorPosY > proc.PosY) std::cout << "\x1b[" << std::to_string(CursorPosY - proc.PosY) << 'B';
+                    else if (CursorPosY < proc.PosY) std::cout << "\x1b[" << std::to_string(proc.PosY - CursorPosY) << 'A';
                 }
                 for (size_t i = 0;i < proc.Buffer.size();i++) {
                     if (proc.PosX == 0) {
@@ -92,7 +93,7 @@ std::thread ConsoleManagerNS::OutputNS::_OutputThread = std::thread([] {
                         std::cout << "\n\x1b[1A";//creating new line so terminal will not eat bottom line
                         if (proc.PosY != 0) std::cout << "\x1b[" << std::to_string(proc.PosY) << 'A';
                         std::cout << "\x1b[L";
-                        for (auto procIter2 = procIter;procIter2 != _OutputtingProcesses.end();procIter2++)
+                        for (auto procIter2 = procIter;procIter2 != OutputtingProcesses.end();procIter2++)
                             //no need for lock since positions are accessed only by this thread
                             procIter2->PosY++;
                     }
@@ -106,29 +107,36 @@ std::thread ConsoleManagerNS::OutputNS::_OutputThread = std::thread([] {
                     }
                 }
                 std::cout << std::flush;
-                _CursorPosX = proc.PosX, _CursorPosY = proc.PosY;
+                CursorPosX = proc.PosX, CursorPosY = proc.PosY;
                 proc.Buffer.clear();
                 proc.Outputting = false;
                 proc.OutputEndedCV.notify_all();
             }
     }
-    });
+}
 
-auto ConsoleManagerNS::OutputNS::CreateOutputtingProcess()->OutputtingProcessS& { return _OutputtingProcesses.emplace_back(); }
-void ConsoleManagerNS::OutputNS::RemoveOutputtingProcess(OutputtingProcessS& proc) {
+std::condition_variable ConsoleManagerNS::OutputNS::UpdateOutputCV;
+std::mutex ConsoleManagerNS::OutputNS::OutputMutex;
+std::list<ConsoleManagerNS::OutputNS::OutputtingProcessC> ConsoleManagerNS::OutputNS::OutputtingProcesses;
+int ConsoleManagerNS::OutputNS::CursorPosX = 0, ConsoleManagerNS::OutputNS::CursorPosY = 0;
+bool ConsoleManagerNS::OutputNS::StopOutputThread = false;
+std::thread ConsoleManagerNS::OutputNS::OutputThread = std::thread(ConsoleManagerNS::OutputNS::OutputThreadFunc);
+
+auto ConsoleManagerNS::OutputNS::CreateOutputtingProcess()->OutputtingProcessC& { return ConsoleManagerNS::OutputNS::OutputtingProcesses.emplace_back(); }
+void ConsoleManagerNS::OutputNS::RemoveOutputtingProcess(OutputtingProcessC& proc) {
     std::unique_lock ul(proc.ProcMutex);
     if (!proc.Buffer.empty()) {
         //looks like calling remove happened too quickly, before outputting thread was able to actually output
         //calling flush cuz what if someone forgot to flush before calling this function, and if outputting
         //thread is not outputting at the moment fo aclling this function, this function will just freeze until
         //someones other flush
-        proc << OutputtingProcessS::FlushOutput;
+        proc << OutputtingProcessC::FlushOutput;
         //now just waiting for buffer to finish outputting
         proc.OutputEndedCV.wait(ul, [&]()->bool {return proc.Buffer.empty() && !proc.Outputting;});
     }
-    _OutputtingProcesses.remove(proc);
+    ConsoleManagerNS::OutputNS::OutputtingProcesses.remove(proc);
 }
 void ConsoleManagerNS::OutputNS::Terminate() {
-    _StopOutputThread = true; UpdateOutputCV.notify_all();
-    _OutputThread.join();
+    ConsoleManagerNS::OutputNS::StopOutputThread = true; UpdateOutputCV.notify_all();
+    ConsoleManagerNS::OutputNS::OutputThread.join();
 }
