@@ -21,7 +21,7 @@ namespace ConsoleManagerNS {
     //todo fix bug with console resizing. offsets dont update
     //this should be threaded as namespace, not a class
     class OutputNS {
-        static std::condition_variable UpdateOutputCV;
+        static inline std::condition_variable UpdateOutputCV;
         static void OutputThreadFunc();
     public:
         class OutputtingProcessC {
@@ -32,6 +32,7 @@ namespace ConsoleManagerNS {
             int PosX = 0, PosY = 0;
             std::mutex ProcMutex;
             std::string Buffer;
+            bool InsertCleanLineOnNextOutput = true;
             bool Outputting = false;
             std::condition_variable OutputEndedCV;
         public:
@@ -58,14 +59,14 @@ namespace ConsoleManagerNS {
             }
         }; friend OutputtingProcessC;
     private:
-        static std::mutex OutputMutex;
-        static std::list<OutputtingProcessC> OutputtingProcesses;
+        static inline std::mutex OutputMutex;
+        static inline std::list<OutputtingProcessC> OutputtingProcesses;
         //position relative to bottom empty line after all of output
-        static int CursorPosX, CursorPosY;//0,0
+        static inline int CursorPosX = 0, CursorPosY = 0;
 
-        static bool StopOutputThread;//false
+        static inline bool StopOutputThread = false;
 
-        static std::thread OutputThread;
+        static inline std::thread OutputThread = std::thread(ConsoleManagerNS::OutputNS::OutputThreadFunc);
     public:
         OutputNS() = delete;
         static OutputtingProcessC& CreateOutputtingProcess();

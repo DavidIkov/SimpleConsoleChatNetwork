@@ -87,7 +87,9 @@ void ConsoleManagerNS::OutputNS::OutputThreadFunc() {
                     else if (CursorPosY < proc.PosY) std::cout << "\x1b[" << std::to_string(proc.PosY - CursorPosY) << 'A';
                 }
                 for (size_t i = 0;i < proc.Buffer.size();i++) {
-                    if (proc.PosX == 0) {
+                    if (proc.InsertCleanLineOnNextOutput) {
+                        proc.InsertCleanLineOnNextOutput = false;
+                        std::cout << '\r';
                         //fully working way to create a new page(\x1b[L) considering all windows terminal fuckery
                         if (proc.PosY != 0) std::cout << "\x1b[" << std::to_string(proc.PosY) << 'B';
                         std::cout << "\n\x1b[1A";//creating new line so terminal will not eat bottom line
@@ -105,10 +107,12 @@ void ConsoleManagerNS::OutputNS::OutputThreadFunc() {
                             proc.PosY--;
                             proc.PosX = 0;
                             std::cout << "\n\r";
+                            proc.InsertCleanLineOnNextOutput = true;
                         }
                     }
                     else if (ch == '\n') {
                         proc.PosY--; proc.PosX = 0; std::cout << "\n\r";
+                        proc.InsertCleanLineOnNextOutput = true;
                     }
                     else if (ch == '\b' && proc.PosX != 0) {
                         std::cout << '\b'; proc.PosX--;
@@ -122,13 +126,6 @@ void ConsoleManagerNS::OutputNS::OutputThreadFunc() {
             }
     }
 }
-
-std::condition_variable ConsoleManagerNS::OutputNS::UpdateOutputCV;
-std::mutex ConsoleManagerNS::OutputNS::OutputMutex;
-std::list<ConsoleManagerNS::OutputNS::OutputtingProcessC> ConsoleManagerNS::OutputNS::OutputtingProcesses;
-int ConsoleManagerNS::OutputNS::CursorPosX = 0, ConsoleManagerNS::OutputNS::CursorPosY = 0;
-bool ConsoleManagerNS::OutputNS::StopOutputThread = false;
-std::thread ConsoleManagerNS::OutputNS::OutputThread = std::thread(ConsoleManagerNS::OutputNS::OutputThreadFunc);
 
 auto ConsoleManagerNS::OutputNS::CreateOutputtingProcess()->OutputtingProcessC& { return ConsoleManagerNS::OutputNS::OutputtingProcesses.emplace_back(); }
 void ConsoleManagerNS::OutputNS::RemoveOutputtingProcess(OutputtingProcessC& proc) {
