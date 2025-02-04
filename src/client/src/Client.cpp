@@ -1,6 +1,7 @@
 #include"Client.hpp"
-#include"ConsoleManager.hpp"
-#define OutputMacro if(OutputtingProcPtr!=nullptr) *OutputtingProcPtr
+
+#define OutputMacro ((OutputtingProcPtr==nullptr)?ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC():*OutputtingProcPtr)
+
 void ClientC::_StartReading_Async() {
     Socket.async_read_some(asio::buffer((char*)WriteBuffer.data(), WriteBuffer.size()), [&](asio::error_code ec, size_t bytes) {
         if (ec) {

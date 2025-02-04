@@ -1,11 +1,13 @@
 #include"Server.hpp"
-#include"ConsoleOutFormatting.hpp"
+
+#define OutputMacro ((OutputtingProcPtr==nullptr)?ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC():*OutputtingProcPtr)
 
 void ServerC::_StartReading(ClientS& client) {
     client.Socket.async_read_some(asio::buffer(client.ReadBuffer, sizeof(client.ReadBuffer)), [&](asio::error_code ec, size_t bytes) {
         if (ec) {
             if (ec == asio::error::eof) {
-                std::cout << PutBeforeLastString << "Client disconnected, stopping reading" << std::endl << RestoreCursorPos;
+                OutputMacro << "Client disconnected, stopping reading"
+                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                 client.Socket.shutdown(client.Socket.shutdown_both);
                 client.Socket.close();
                 OnDisconnect(client);
@@ -13,14 +15,16 @@ void ServerC::_StartReading(ClientS& client) {
                 return;
             }
             else if (ec == asio::error::operation_aborted) {
-                std::cout << PutBeforeLastString << "Server forcefully closed socket, stopping reading" << std::endl << RestoreCursorPos;
+                OutputMacro << "Server forcefully closed socket, stopping reading"
+                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                 //no need for shutdown and close and removing of socket since this code will happen only on shutdown, 
                 //so its done forcefully and i can rely on caller to do allat
                 OnDisconnect(client);
                 return;
             }
             else if (ec == asio::error::connection_reset) {
-                std::cout << PutBeforeLastString << "Client reseted connection, stopping reading" << std::endl << RestoreCursorPos;
+                OutputMacro << "Client reseted connection, stopping reading"
+                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                 client.Socket.shutdown(client.Socket.shutdown_both);
                 client.Socket.close();
                 OnDisconnect(client);
@@ -28,8 +32,9 @@ void ServerC::_StartReading(ClientS& client) {
                 return;
             }
             else {
-                std::cout << PutBeforeLastString << "Unhandled error occured in socket, stopping reading " <<
-                    ec.value() << ' ' << ec.message() << std::endl << RestoreCursorPos;
+                OutputMacro << "Unhandled error occured in socket, stopping reading " <<
+                    ec.value() << ' ' << ec.message()
+                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                 client.Socket.shutdown(client.Socket.shutdown_both);
                 client.Socket.close();
                 OnDisconnect(client);
@@ -46,15 +51,18 @@ void ServerC::_AcceptConnection() {
     ConnectionsAcceptor.async_accept(client.Socket, [&](asio::error_code ec) {
         if (ec) {
             if (ec == asio::error::operation_aborted) {
-                std::cout << PutBeforeLastString << "Server closed socket, closing acceptor" << std::endl << RestoreCursorPos;
+                OutputMacro << "Server closed socket, closing acceptor"
+                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                 return;
             } else {
-                std::cout << PutBeforeLastString << "Unhandled error occured in socket, closing acceptor " <<
-                    ec.value() << ' ' << ec.message() << std::endl << RestoreCursorPos;
+                OutputMacro << "Unhandled error occured in socket, closing acceptor " <<
+                    ec.value() << ' ' << ec.message()
+                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                 return;
             }
         }
-        std::cout << PutBeforeLastString << "Connected! " << client.Socket.remote_endpoint().address().to_string() << std::endl << RestoreCursorPos;
+        OutputMacro << "Connected! " << client.Socket.remote_endpoint().address().to_string()
+            << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
         OnConnect();
         _StartReading(client);
         _AcceptConnection();
@@ -63,7 +71,8 @@ void ServerC::_AcceptConnection() {
 }
 ServerC::ServerC(asio::io_context& asioContext, asio::ip::port_type port) :
     AsioContext(asioContext), ConnectionsAcceptor(asioContext, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {
-    std::cout << PutBeforeLastString << "Server is up" << std::endl << RestoreCursorPos;
+    OutputMacro << "Server is up"
+        << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
     _AcceptConnection();
 }
 ServerC::~ServerC() {
@@ -85,6 +94,7 @@ void ServerC::Shutdown() {
                 client.Socket.close();
             }
         ActiveClients.clear();
-        std::cout << PutBeforeLastString << "Server shutdown" << std::endl << RestoreCursorPos;
+        OutputMacro << "Server shutdown"
+            << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
     }
 }

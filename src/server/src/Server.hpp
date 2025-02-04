@@ -1,11 +1,13 @@
 #pragma once
 #include"AsioInclude.hpp"
+#include"ConsoleManager.hpp"
 #include<list>
 
 class ServerC {
 protected:
     std::reference_wrapper<asio::io_context> AsioContext;
     asio::ip::tcp::acceptor ConnectionsAcceptor;
+    ConsoleManagerNS::OutputNS::OutputtingProcessC* OutputtingProcPtr = nullptr;
 public:
     struct ClientS {
         asio::ip::tcp::socket Socket;
@@ -19,6 +21,21 @@ private:
     void _StartReading(ClientS& client);
     void _AcceptConnection();
 public:
+
+    inline void sOutputtingProcPtr(ConsoleManagerNS::OutputNS::OutputtingProcessC* outputtingProcPtr)
+        { OutputtingProcPtr = outputtingProcPtr; }
+
+    //used to call sOutputtingProcPtr automatically, enabling it on construction and disabling on destruction
+    class OutputtingProcPtrWrapperC {
+        ServerC& Server;
+    public:
+        inline OutputtingProcPtrWrapperC(ServerC& server, ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) :
+            Server(server) {
+            Server.sOutputtingProcPtr(&outProc);
+        }
+        inline ~OutputtingProcPtrWrapperC() { Server.sOutputtingProcPtr(nullptr); }
+    };
+    
     ServerC(asio::io_context& asioContext, asio::ip::port_type port);
     ServerC(const ServerC&) = delete;
     ServerC(ServerC&&) = default;

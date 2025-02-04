@@ -1,6 +1,6 @@
 #pragma once
 #include"AsioInclude.hpp"
-
+#include"RemoveArrayPointer.hpp"
 #include"ConsoleManager.hpp"
 #include<string>
 #include<mutex>
@@ -43,7 +43,6 @@ namespace ConsoleCommandsNS {
 
     
     std::thread InitializeConsoleReadingThread() {
-        ConsoleManagerNS::Initialize();
         return std::thread([&] {
             while (true) {
                 ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC outProc;

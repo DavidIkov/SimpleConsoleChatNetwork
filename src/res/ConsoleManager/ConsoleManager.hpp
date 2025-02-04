@@ -72,6 +72,7 @@ namespace ConsoleManagerNS {
         static OutputtingProcessC& CreateOutputtingProcess();
         static void RemoveOutputtingProcess(OutputtingProcessC& proc);
         static void Terminate();
+
         class OutputtingProcessWrapperC {
             OutputtingProcessC& Proc;
         public:
