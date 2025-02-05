@@ -64,6 +64,8 @@ namespace ConsoleManagerNS {
         //position relative to bottom empty line after all of output
         static inline int CursorPosX = 0, CursorPosY = 0;
 
+        static inline bool Terminated = false;
+
         static inline bool StopOutputThread = false;
 
         static inline std::thread OutputThread = std::thread(ConsoleManagerNS::OutputNS::OutputThreadFunc);

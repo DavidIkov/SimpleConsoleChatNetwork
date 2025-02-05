@@ -17,13 +17,12 @@ int main(int argc, char** argv) {
     DataForCommands.Server = &server;
 
     std::thread th = ConsoleCommandsNS::InitializeConsoleReadingThread();
-
     th.join();
-    ConsoleManagerNS::OutputNS::Terminate();
     server.Shutdown();
     CurContext.stop();
     IdleWork.~work();
     ContextThread.join();
+    ConsoleManagerNS::OutputNS::Terminate();
 
 
     /*

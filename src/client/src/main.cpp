@@ -25,10 +25,10 @@ int main(int argc, char** argv) {
     std::thread th = ConsoleCommandsNS::InitializeConsoleReadingThread();
 
     th.join();
-    ConsoleManagerNS::OutputNS::Terminate();
     CurContext.stop();
     IdleWork.~work();
     ContextThread.join();
+    ConsoleManagerNS::OutputNS::Terminate();
     return 0;
 }
 

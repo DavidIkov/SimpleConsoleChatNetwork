@@ -51,11 +51,11 @@ void ServerC::_AcceptConnection() {
     ConnectionsAcceptor.async_accept(client.Socket, [&](asio::error_code ec) {
         if (ec) {
             if (ec == asio::error::operation_aborted) {
-                OutputMacro << "Server closed socket, closing acceptor"
+                OutputMacro << "Server closed acceptor"
                     << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                 return;
             } else {
-                OutputMacro << "Unhandled error occured in socket, closing acceptor " <<
+                OutputMacro << "Unhandled error occured in acceptor" <<
                     ec.value() << ' ' << ec.message()
                     << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                 return;

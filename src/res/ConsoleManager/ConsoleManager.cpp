@@ -78,57 +78,63 @@ void ConsoleManagerNS::OutputNS::OutputThreadFunc() {
         for (auto procIter = ConsoleManagerNS::OutputNS::OutputtingProcesses.begin();procIter != ConsoleManagerNS::OutputNS::OutputtingProcesses.end();procIter++)
             if (!procIter->Buffer.empty()) {
                 auto& proc = *procIter;
-                std::lock_guard lg(proc.ProcMutex);
-                proc.Outputting = true;
-                {//move cursor
-                    if (CursorPosX > proc.PosX) std::cout << "\x1b[" << std::to_string(CursorPosX - proc.PosX) << 'D';
-                    else if (CursorPosX < proc.PosX) std::cout << "\x1b[" << std::to_string(proc.PosX - CursorPosX) << 'C';
-                    if (CursorPosY > proc.PosY) std::cout << "\x1b[" << std::to_string(CursorPosY - proc.PosY) << 'B';
-                    else if (CursorPosY < proc.PosY) std::cout << "\x1b[" << std::to_string(proc.PosY - CursorPosY) << 'A';
-                }
-                for (size_t i = 0;i < proc.Buffer.size();i++) {
-                    if (proc.InsertCleanLineOnNextOutput) {
-                        proc.InsertCleanLineOnNextOutput = false;
-                        std::cout << '\r';
-                        //fully working way to create a new page(\x1b[L) considering all windows terminal fuckery
-                        if (proc.PosY != 0) std::cout << "\x1b[" << std::to_string(proc.PosY) << 'B';
-                        std::cout << "\n\x1b[1A";//creating new line so terminal will not eat bottom line
-                        if (proc.PosY != 0) std::cout << "\x1b[" << std::to_string(proc.PosY) << 'A';
-                        std::cout << "\x1b[L";
-                        for (auto procIter2 = procIter;procIter2 != OutputtingProcesses.end();procIter2++)
-                            //no need for lock since positions are accessed only by this thread
-                            procIter2->PosY++;
+                {
+                    std::lock_guard lg(proc.ProcMutex);
+                    proc.Outputting = true;
+                    {//move cursor
+                        if (CursorPosX > proc.PosX) std::cout << "\x1b[" << std::to_string(CursorPosX - proc.PosX) << 'D';
+                        else if (CursorPosX < proc.PosX) std::cout << "\x1b[" << std::to_string(proc.PosX - CursorPosX) << 'C';
+                        if (CursorPosY > proc.PosY) std::cout << "\x1b[" << std::to_string(CursorPosY - proc.PosY) << 'B';
+                        else if (CursorPosY < proc.PosY) std::cout << "\x1b[" << std::to_string(proc.PosY - CursorPosY) << 'A';
                     }
-                    char ch = proc.Buffer[i];
-                    if ((ch < 32 || ch > 126) && ch != '\n' && ch != '\b') ch = '?';
-                    if (ch != '\n' && ch != '\b') {
-                        std::cout << ch;
-                        if (++proc.PosX == consoleSizeX) {
-                            proc.PosY--;
-                            proc.PosX = 0;
-                            std::cout << "\n\r";
+                    for (size_t i = 0;i < proc.Buffer.size();i++) {
+                        if (proc.InsertCleanLineOnNextOutput) {
+                            proc.InsertCleanLineOnNextOutput = false;
+                            std::cout << '\r';
+                            //fully working way to create a new page(\x1b[L) considering all windows terminal fuckery
+                            if (proc.PosY != 0) std::cout << "\x1b[" << std::to_string(proc.PosY) << 'B';
+                            std::cout << "\n\x1b[1A";//creating new line so terminal will not eat bottom line
+                            if (proc.PosY != 0) std::cout << "\x1b[" << std::to_string(proc.PosY) << 'A';
+                            std::cout << "\x1b[L";
+                            for (auto procIter2 = procIter;procIter2 != OutputtingProcesses.end();procIter2++)
+                                //no need for lock since positions are accessed only by this thread
+                                procIter2->PosY++;
+                        }
+                        char ch = proc.Buffer[i];
+                        if ((ch < 32 || ch > 126) && ch != '\n' && ch != '\b') ch = '?';
+                        if (ch != '\n' && ch != '\b') {
+                            std::cout << ch;
+                            if (++proc.PosX == consoleSizeX) {
+                                proc.PosY--;
+                                proc.PosX = 0;
+                                std::cout << "\n\r";
+                                proc.InsertCleanLineOnNextOutput = true;
+                            }
+                        }
+                        else if (ch == '\n') {
+                            proc.PosY--; proc.PosX = 0; std::cout << "\n\r";
                             proc.InsertCleanLineOnNextOutput = true;
                         }
+                        else if (ch == '\b' && proc.PosX != 0) {
+                            std::cout << '\b'; proc.PosX--;
+                        }
                     }
-                    else if (ch == '\n') {
-                        proc.PosY--; proc.PosX = 0; std::cout << "\n\r";
-                        proc.InsertCleanLineOnNextOutput = true;
-                    }
-                    else if (ch == '\b' && proc.PosX != 0) {
-                        std::cout << '\b'; proc.PosX--;
-                    }
+                    std::cout << std::flush;
+                    CursorPosX = proc.PosX, CursorPosY = proc.PosY;
+                    proc.Buffer.clear();
+                    proc.Outputting = false;
                 }
-                std::cout << std::flush;
-                CursorPosX = proc.PosX, CursorPosY = proc.PosY;
-                proc.Buffer.clear();
-                proc.Outputting = false;
                 proc.OutputEndedCV.notify_all();
             }
     }
 }
 
-auto ConsoleManagerNS::OutputNS::CreateOutputtingProcess()->OutputtingProcessC& { return ConsoleManagerNS::OutputNS::OutputtingProcesses.emplace_back(); }
+auto ConsoleManagerNS::OutputNS::CreateOutputtingProcess()->OutputtingProcessC& {
+    std::lock_guard lg(OutputMutex);
+    return OutputtingProcesses.emplace_front();
+}
 void ConsoleManagerNS::OutputNS::RemoveOutputtingProcess(OutputtingProcessC& proc) {
+    if (Terminated) return;
     {
         std::unique_lock ul(proc.ProcMutex);
         if (!proc.Buffer.empty()) {
@@ -141,9 +147,15 @@ void ConsoleManagerNS::OutputNS::RemoveOutputtingProcess(OutputtingProcessC& pro
             proc.OutputEndedCV.wait(ul, [&]()->bool {return proc.Buffer.empty() && !proc.Outputting;});
         }
     }
+    std::lock_guard lg(OutputMutex);
     ConsoleManagerNS::OutputNS::OutputtingProcesses.remove(proc);
 }
 void ConsoleManagerNS::OutputNS::Terminate() {
-    ConsoleManagerNS::OutputNS::StopOutputThread = true; UpdateOutputCV.notify_all();
-    ConsoleManagerNS::OutputNS::OutputThread.join();
+    if (Terminated) return;
+    {
+        std::lock_guard lg(OutputMutex);
+        Terminated = true;
+        StopOutputThread = true; UpdateOutputCV.notify_all();
+    }
+    OutputThread.join();
 }
