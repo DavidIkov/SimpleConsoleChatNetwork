@@ -2,16 +2,23 @@
 #include"AsioInclude.hpp"
 #include"RemoveArrayPointer.hpp"
 #include"ConsoleManager.hpp"
+#include"Client.hpp"
 #include<string>
 #include<mutex>
 namespace ConsoleCommandsNS {
+
+    struct {
+        
+        ClientC* Client = nullptr;
+    } DataForCommands;
+
     std::mutex Mutex;
     std::string CommandBuffer;
     bool StopReading = false;
     namespace CommandsNS {
         std::pair<std::string_view, void(*)(ConsoleManagerNS::OutputNS::OutputtingProcessC&)> Commands[] = {
             {"connect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc){
-                ClientC::OutputtingProcPtrWrapperC clientOutProcWrap(Client, outProc);
+                ClientC::OutputtingProcPtrWrapperC clientOutProcWrap(*DataForCommands.Client, outProc);
                 size_t fs = CommandBuffer.find_first_of(' ');
                 size_t ss = CommandBuffer.find_first_of(' ', fs + 1);
                 if (fs == std::string::npos || ss == std::string::npos) {
@@ -25,15 +32,15 @@ namespace ConsoleCommandsNS {
                     asio::error_code ec;
                     auto ip = asio::ip::make_address(ipStr, ec);
                     if (ec) { outProc << "could not convert ip string to ip" << outProc.EndLine; return; }
-                    Client.Connect(asio::ip::tcp::endpoint(ip, port));
+                    DataForCommands.Client->Connect(asio::ip::tcp::endpoint(ip, port));
                 }
                 catch (std::invalid_argument&) {
                     outProc << "could not convert port string to port" << outProc.EndLine; return;
                 }
             }},
             {"disconnect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) {
-                ClientC::OutputtingProcPtrWrapperC clientOutProcWrap(Client, outProc);
-                Client.Disconnect();
+                ClientC::OutputtingProcPtrWrapperC clientOutProcWrap(*DataForCommands.Client, outProc);
+                DataForCommands.Client->Disconnect();
             }},
             {"exit",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&){
                 StopReading = true;

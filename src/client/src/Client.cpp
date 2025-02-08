@@ -3,7 +3,7 @@
 #define OutputMacro ((OutputtingProcPtr==nullptr)?ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC():*OutputtingProcPtr)
 
 void ClientC::_StartReading_Async() {
-    Socket.async_read_some(asio::buffer((char*)WriteBuffer.data(), WriteBuffer.size()), [&](asio::error_code ec, size_t bytes) {
+    Socket.async_read_some(asio::buffer(SocketBuffer, sizeof(SocketBuffer)), [&](asio::error_code ec, size_t bytes) {
         if (ec) {
             if (ec == asio::error::eof) {
                 OutputMacro << "Server disconnected, stopping reading"
@@ -28,8 +28,7 @@ void ClientC::_StartReading_Async() {
         _StartReading_Async();
         });
 }
-ClientC::ClientC(asio::io_context& context, std::string_view writeBuffer) :Context(context),
-Socket(context), WriteBuffer(writeBuffer) { }
+ClientC::ClientC(asio::io_context& context) :Context(context), Socket(context) { }
 void ClientC::Connect(asio::ip::tcp::endpoint ep) {
     if (Socket.is_open()) {
         OutputMacro << "Cant connect socket, its already connected"
@@ -79,7 +78,7 @@ void ClientC::Disconnect() {
     OnDisconnect();
 }
 void ClientC::OnRead(size_t bytesRead) {
-    for (size_t i = 0;i < bytesRead;i++) OutputMacro << WriteBuffer[i];
+    for (size_t i = 0;i < bytesRead;i++) OutputMacro << SocketBuffer[i];
     OutputMacro << OutputtingProcPtr->EndLine;
 }
 void ClientC::Write(const std::string_view& data) {

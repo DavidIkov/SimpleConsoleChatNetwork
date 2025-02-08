@@ -2,9 +2,15 @@
 #include"AsioInclude.hpp"
 #include"RemoveArrayPointer.hpp"
 #include"ConsoleManager.hpp"
+#include"Server.hpp"
 #include<string>
 #include<mutex>
 namespace ConsoleCommandsNS {
+
+    struct {
+        ServerC* Server = nullptr;
+    } DataForCommands;
+    
     std::mutex Mutex;
     std::string CommandBuffer;
     bool StopReading = false;

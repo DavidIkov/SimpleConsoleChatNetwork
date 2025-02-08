@@ -5,11 +5,11 @@ class ClientC {
 protected:
     std::reference_wrapper<asio::io_context> Context;
     asio::ip::tcp::socket Socket;
-    std::string_view WriteBuffer;
+    char SocketBuffer[64];
     ConsoleManagerNS::OutputNS::OutputtingProcessC* OutputtingProcPtr = nullptr;
     void _StartReading_Async();
 public:
-    ClientC(asio::io_context& context, std::string_view writeBuffer);
+    ClientC(asio::io_context& context);
     virtual ~ClientC() = default;
 
     inline void sOutputtingProcPtr(ConsoleManagerNS::OutputNS::OutputtingProcessC* outputtingProcPtr)

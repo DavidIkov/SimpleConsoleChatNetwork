@@ -1,9 +1,4 @@
 #include"Server.hpp"
-
-struct {
-    ServerC* Server = nullptr;
-} DataForCommands;
-
 #include"ConsoleCommands.hpp"
 
 int main(int argc, char** argv) {
@@ -14,8 +9,8 @@ int main(int argc, char** argv) {
     asio::io_context::work IdleWork(CurContext);
     std::thread ContextThread([&] {CurContext.run();});
     ServerC server(CurContext, 16120);
-    DataForCommands.Server = &server;
 
+    ConsoleCommandsNS::DataForCommands.Server = &server;
     std::thread th = ConsoleCommandsNS::InitializeConsoleReadingThread();
     th.join();
     server.Shutdown();
