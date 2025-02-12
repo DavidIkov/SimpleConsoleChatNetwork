@@ -5,6 +5,7 @@
 class EventsClientC :virtual public BasicClientC {
 public:
     using BasicClientC::BasicClientC;
+    virtual ~EventsClientC() = default;
 private:
     using BasicClientC::Write;
 

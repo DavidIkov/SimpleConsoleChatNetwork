@@ -12,11 +12,11 @@ namespace ConsoleCommandsNS {
         BasicClientC* Client = nullptr;
     } DataForCommands;
 
-    std::mutex Mutex;
-    std::string CommandBuffer;
-    bool StopReading = false;
+    inline std::mutex Mutex;
+    inline std::string CommandBuffer;
+    inline bool StopReading = false;
     namespace CommandsNS {
-        std::pair<std::string_view, void(*)(ConsoleManagerNS::OutputNS::OutputtingProcessC&)> Commands[] = {
+        inline std::pair<std::string_view, void(*)(ConsoleManagerNS::OutputNS::OutputtingProcessC&)> Commands[] = {
             {"connect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc){
                 BasicClientC::OutputtingProcPtrWrapperC clientOutProcWrap(*DataForCommands.Client, outProc);
                 size_t fs = CommandBuffer.find_first_of(' ');
@@ -45,11 +45,11 @@ namespace ConsoleCommandsNS {
             {"exit",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&){
                 StopReading = true;
             }}
-        }; constexpr size_t CommandsAmount = sizeof(Commands) / sizeof(std::remove_array_pointer_t<decltype(Commands)>);
+        }; inline constexpr size_t CommandsAmount = sizeof(Commands) / sizeof(std::remove_array_pointer_t<decltype(Commands)>);
     }
 
     
-    std::thread InitializeConsoleReadingThread() {
+    inline std::thread InitializeConsoleReadingThread() {
         return std::thread([&] {
             while (true) {
                 ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC outProc;

@@ -5,6 +5,7 @@
 class EventsServerC :virtual public BasicServerC {
 public:
     using BasicServerC::BasicServerC;
+    virtual ~EventsServerC() = default;
 private:
     using BasicServerC::WriteToClient;
 
