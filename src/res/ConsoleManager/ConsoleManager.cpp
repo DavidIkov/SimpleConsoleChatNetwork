@@ -158,4 +158,5 @@ void ConsoleManagerNS::OutputNS::Terminate() {
         StopOutputThread = true; UpdateOutputCV.notify_all();
     }
     OutputThread.join();
+    std::cout << "\x1b[" << std::to_string(CursorPosY) << "B\r" << std::flush;
 }

@@ -8,7 +8,8 @@
 #include<condition_variable>
 #include<functional>
 #include"RemoveArrayPointer.hpp"
-#include"Client.hpp"
+#include"ClientClass/BasicClient.hpp"
+#include"ClientClass/EventsClient.hpp"
 #include"ConsoleCommands.hpp"
 
 int main(int argc, char** argv) {
@@ -19,9 +20,11 @@ int main(int argc, char** argv) {
     asio::io_context::work IdleWork(CurContext);
     std::thread ContextThread([&] {CurContext.run();});
     
-    ClientC Client(CurContext);
+    EventsClientC Client(CurContext);
 
     ConsoleCommandsNS::DataForCommands.Client = &Client;
+
+    ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC() << "Client is running!" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
 
     std::thread th = ConsoleCommandsNS::InitializeConsoleReadingThread();
 

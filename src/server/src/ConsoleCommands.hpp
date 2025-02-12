@@ -2,13 +2,13 @@
 #include"AsioInclude.hpp"
 #include"RemoveArrayPointer.hpp"
 #include"ConsoleManager.hpp"
-#include"Server.hpp"
+#include"ServerClass/BasicServer.hpp"
 #include<string>
 #include<mutex>
 namespace ConsoleCommandsNS {
 
     struct {
-        ServerC* Server = nullptr;
+        BasicServerC* Server = nullptr;
     } DataForCommands;
     
     std::mutex Mutex;

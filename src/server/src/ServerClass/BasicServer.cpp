@@ -1,8 +1,8 @@
-#include"Server.hpp"
+#include"BasicServer.hpp"
 
 #define OutputMacro ((OutputtingProcPtr==nullptr)?ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC():*OutputtingProcPtr)
 
-void ServerC::_StartReading(ClientS& client) {
+void BasicServerC::_StartReading(ClientS& client) {
     client.Socket.async_read_some(asio::buffer(client.ReadBuffer, sizeof(client.ReadBuffer)), [&](asio::error_code ec, size_t bytes) {
         if (ec) {
             if (ec == asio::error::eof) {
@@ -42,11 +42,11 @@ void ServerC::_StartReading(ClientS& client) {
                 return;
             }
         }
-        OnRead(bytes);
+        OnRead(client, bytes);
         _StartReading(client);
         });
 }
-void ServerC::_AcceptConnection() {
+void BasicServerC::_AcceptConnection() {
     ClientS& client = ActiveClients.emplace_front(AsioContext.get());
     ConnectionsAcceptor.async_accept(client.Socket, [&](asio::error_code ec) {
         if (ec) {
@@ -69,23 +69,30 @@ void ServerC::_AcceptConnection() {
         });
 
 }
-ServerC::ServerC(asio::io_context& asioContext, asio::ip::port_type port) :
+BasicServerC::BasicServerC(asio::io_context& asioContext, asio::ip::port_type port) :
     AsioContext(asioContext), ConnectionsAcceptor(asioContext, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {
     OutputMacro << "Server is up"
         << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
     _AcceptConnection();
 }
-ServerC::~ServerC() {
+BasicServerC::~BasicServerC() {
     Shutdown();
 }
-void ServerC::WriteToSocket(asio::ip::tcp::socket& socketToWrite, const std::string_view& data) {
-    if (!data.empty())
-        socketToWrite.async_write_some(asio::buffer((char*)data.data(), data.size()), [&](asio::error_code ec, size_t bytesWritten) {
-            if (ec) return;
-            WriteToSocket(socketToWrite, std::string_view(data.data() + bytesWritten, data.size() - bytesWritten));
-            });
+template<> void BasicServerC::WriteToClient<std::string_view const&>(ClientS& client, const std::string_view& data) {
+    if (!data.empty()) {
+        size_t bytesOffset = 0;
+        asio::error_code ec;
+        while ((bytesOffset +=
+            client.Socket.write_some(asio::buffer(data.data() + bytesOffset, data.size() - bytesOffset), ec)) != data.size())
+            if (ec) {
+                if (ec == asio::error::operation_aborted) OutputMacro << "Canceled writing to socket" <<
+                    ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                else OutputMacro << "Unhandled error occured while writing to socket" <<
+                    ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+            }
+    }
 }
-void ServerC::Shutdown() {
+void BasicServerC::Shutdown() {
     if (ConnectionsAcceptor.is_open()) {
         ConnectionsAcceptor.close();
         for (auto& client : ActiveClients)

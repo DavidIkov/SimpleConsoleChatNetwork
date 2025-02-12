@@ -2,14 +2,14 @@
 #include"AsioInclude.hpp"
 #include"RemoveArrayPointer.hpp"
 #include"ConsoleManager.hpp"
-#include"Client.hpp"
+#include"ClientClass/BasicClient.hpp"
 #include<string>
 #include<mutex>
 namespace ConsoleCommandsNS {
 
     struct {
         
-        ClientC* Client = nullptr;
+        BasicClientC* Client = nullptr;
     } DataForCommands;
 
     std::mutex Mutex;
@@ -18,7 +18,7 @@ namespace ConsoleCommandsNS {
     namespace CommandsNS {
         std::pair<std::string_view, void(*)(ConsoleManagerNS::OutputNS::OutputtingProcessC&)> Commands[] = {
             {"connect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc){
-                ClientC::OutputtingProcPtrWrapperC clientOutProcWrap(*DataForCommands.Client, outProc);
+                BasicClientC::OutputtingProcPtrWrapperC clientOutProcWrap(*DataForCommands.Client, outProc);
                 size_t fs = CommandBuffer.find_first_of(' ');
                 size_t ss = CommandBuffer.find_first_of(' ', fs + 1);
                 if (fs == std::string::npos || ss == std::string::npos) {
@@ -39,7 +39,7 @@ namespace ConsoleCommandsNS {
                 }
             }},
             {"disconnect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) {
-                ClientC::OutputtingProcPtrWrapperC clientOutProcWrap(*DataForCommands.Client, outProc);
+                BasicClientC::OutputtingProcPtrWrapperC clientOutProcWrap(*DataForCommands.Client, outProc);
                 DataForCommands.Client->Disconnect();
             }},
             {"exit",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&){

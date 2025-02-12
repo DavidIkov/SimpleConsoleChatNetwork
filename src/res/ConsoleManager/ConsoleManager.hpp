@@ -69,8 +69,9 @@ namespace ConsoleManagerNS {
         static inline bool StopOutputThread = false;
 
         static inline std::thread OutputThread = std::thread(ConsoleManagerNS::OutputNS::OutputThreadFunc);
-    public:
+
         OutputNS() = delete;
+    public:
         static OutputtingProcessC& CreateOutputtingProcess();
         static void RemoveOutputtingProcess(OutputtingProcessC& proc);
         static void Terminate();

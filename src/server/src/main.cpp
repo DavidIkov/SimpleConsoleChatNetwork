@@ -1,4 +1,5 @@
-#include"Server.hpp"
+#include"ServerClass/BasicServer.hpp"
+#include"ServerClass/EventsServer.hpp"
 #include"ConsoleCommands.hpp"
 
 int main(int argc, char** argv) {
@@ -8,7 +9,7 @@ int main(int argc, char** argv) {
     asio::error_code CurErrorCode;
     asio::io_context::work IdleWork(CurContext);
     std::thread ContextThread([&] {CurContext.run();});
-    ServerC server(CurContext, 16120);
+    EventsServerC server(CurContext, 16120);
 
     ConsoleCommandsNS::DataForCommands.Server = &server;
     std::thread th = ConsoleCommandsNS::InitializeConsoleReadingThread();

@@ -1,7 +1,8 @@
 #pragma once
 #include"AsioInclude.hpp"
 #include"ConsoleManager.hpp"
-class ClientC {
+//basic client functionality
+class BasicClientC {
 protected:
     std::reference_wrapper<asio::io_context> Context;
     asio::ip::tcp::socket Socket;
@@ -9,17 +10,17 @@ protected:
     ConsoleManagerNS::OutputNS::OutputtingProcessC* OutputtingProcPtr = nullptr;
     void _StartReading_Async();
 public:
-    ClientC(asio::io_context& context);
-    virtual ~ClientC() = default;
+    BasicClientC(asio::io_context& context);
+    virtual ~BasicClientC() = default;
 
     inline void sOutputtingProcPtr(ConsoleManagerNS::OutputNS::OutputtingProcessC* outputtingProcPtr)
         { OutputtingProcPtr = outputtingProcPtr; }
 
     //used to call sOutputtingProcPtr automatically, enabling it on construction and disabling on destruction
     class OutputtingProcPtrWrapperC {
-        ClientC& Client;
+        BasicClientC& Client;
     public:
-        inline OutputtingProcPtrWrapperC(ClientC& client, ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) :
+        inline OutputtingProcPtrWrapperC(BasicClientC& client, ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) :
             Client(client) {
             Client.sOutputtingProcPtr(&outProc);
         }
@@ -31,7 +32,10 @@ public:
 protected:
     inline virtual void OnConnect() {};
     inline virtual void OnDisconnect() {};
+    //by default just prints out everything received
     virtual void OnRead(size_t bytesRead);
 public:
-    void Write(const std::string_view& data);
+    template<typename T> void Write(T&& var) { Write(std::string_view(&var, sizeof(var))); }
+    //used to send data that is stored in some adress
+    template<> void Write<const std::string_view&>(const std::string_view& data);
 };

@@ -1,8 +1,8 @@
-#include"Client.hpp"
+#include"BasicClient.hpp"
 
 #define OutputMacro ((OutputtingProcPtr==nullptr)?ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC():*OutputtingProcPtr)
 
-void ClientC::_StartReading_Async() {
+void BasicClientC::_StartReading_Async() {
     Socket.async_read_some(asio::buffer(SocketBuffer, sizeof(SocketBuffer)), [&](asio::error_code ec, size_t bytes) {
         if (ec) {
             if (ec == asio::error::eof) {
@@ -28,8 +28,8 @@ void ClientC::_StartReading_Async() {
         _StartReading_Async();
         });
 }
-ClientC::ClientC(asio::io_context& context) :Context(context), Socket(context) { }
-void ClientC::Connect(asio::ip::tcp::endpoint ep) {
+BasicClientC::BasicClientC(asio::io_context& context) :Context(context), Socket(context) { }
+void BasicClientC::Connect(asio::ip::tcp::endpoint ep) {
     if (Socket.is_open()) {
         OutputMacro << "Cant connect socket, its already connected"
             << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
@@ -51,7 +51,7 @@ void ClientC::Connect(asio::ip::tcp::endpoint ep) {
         _StartReading_Async();
     }
 }
-void ClientC::Disconnect() {
+void BasicClientC::Disconnect() {
     if (!Socket.is_open()) {
         OutputMacro << "Cant disconnect socket since it isnt connected to anything"
         << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
@@ -77,19 +77,21 @@ void ClientC::Disconnect() {
         << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
     OnDisconnect();
 }
-void ClientC::OnRead(size_t bytesRead) {
+void BasicClientC::OnRead(size_t bytesRead) {
     for (size_t i = 0;i < bytesRead;i++) OutputMacro << SocketBuffer[i];
     OutputMacro << OutputtingProcPtr->EndLine;
 }
-void ClientC::Write(const std::string_view& data) {
-    if (!data.empty())
-        Socket.async_write_some(asio::buffer((char*)data.data(), data.size()), [&](asio::error_code ec, size_t bytesWritten) {
+template<> void BasicClientC::Write<const std::string_view&>(const std::string_view& data) {
+    if (!data.empty()) {
+        size_t bytesOffset = 0;
+        asio::error_code ec;
+        while ((bytesOffset +=
+            Socket.write_some(asio::buffer(data.data() + bytesOffset, data.size() - bytesOffset), ec)) != data.size())
             if (ec) {
-                OutputMacro << "Failed to write to socket with error "
-                    << ec.value() << ' ' << ec.message()
-                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
-                return;
+                if (ec == asio::error::operation_aborted) OutputMacro << "Canceled writing to socket" <<
+                    ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                else OutputMacro << "Unhandled error occured while writing to socket" <<
+                    ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
             }
-            Write(std::string_view(data.data() + bytesWritten, data.size() - bytesWritten));
-        });
+    }
 }
