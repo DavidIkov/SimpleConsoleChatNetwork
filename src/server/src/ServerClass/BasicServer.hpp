@@ -1,29 +1,33 @@
 #pragma once
 #include"AsioInclude.hpp"
 #include"ConsoleManager.hpp"
-#include<list>
-
+#include<vector>
 class BasicServerC {
+public:
+    struct BasicClientS {
+        asio::ip::tcp::socket Socket;
+        char ReadBuffer[64];
+        inline BasicClientS(asio::io_context& context) :Socket(context) {};
+        virtual ~BasicClientS() = default;
+    };
 protected:
     std::reference_wrapper<asio::io_context> AsioContext;
     asio::ip::tcp::acceptor ConnectionsAcceptor;
     ConsoleManagerNS::OutputNS::OutputtingProcessC* OutputtingProcPtr = nullptr;
-public:
-    struct ClientS {
-        asio::ip::tcp::socket Socket;
-        char ReadBuffer[64];
-        inline ClientS(asio::io_context& context) :Socket(context) {};
-    };
-protected:
     //first client is not active, it is waiting for connection
-    std::list<ClientS> ActiveClients;
+    std::vector<std::unique_ptr<BasicClientS>> Clients;
 private:
-    void _StartReading(ClientS& client);
+    void _RemoveClient(BasicClientS& client);
+    void _StartReading(BasicClientS& client);
     void _AcceptConnection();
+protected:
+    virtual BasicClientS& ClientFactory();
 public:
 
     inline void sOutputtingProcPtr(ConsoleManagerNS::OutputNS::OutputtingProcessC* outputtingProcPtr)
-        { OutputtingProcPtr = outputtingProcPtr; }
+    {
+        OutputtingProcPtr = outputtingProcPtr;
+    }
 
     //used to call sOutputtingProcPtr automatically, enabling it on construction and disabling on destruction
     class OutputtingProcPtrWrapperC {
@@ -35,7 +39,7 @@ public:
         }
         inline ~OutputtingProcPtrWrapperC() { Server.sOutputtingProcPtr(nullptr); }
     };
-    
+
     BasicServerC(asio::io_context& asioContext, asio::ip::port_type port);
     BasicServerC(const BasicServerC&) = delete;
     BasicServerC(BasicServerC&&) = default;
@@ -44,12 +48,14 @@ public:
     BasicServerC& operator=(const BasicServerC&) = delete;
 protected:
     //connected client is always first in list
-    inline virtual void OnConnect() { };
-    inline virtual void OnDisconnect(ClientS& disconectedClient) {};
-    inline virtual void OnRead(ClientS& client, size_t bytesRead) {};
+    inline virtual void OnConnect() {};
+    inline virtual void OnDisconnect(BasicClientS& disconectedClient) {};
+    inline virtual void OnRead(BasicClientS& client, size_t bytesRead) {};
+private:
+    void _WriteToClient(BasicClientS& client, void const* arr, size_t lenInBytes);
 public:
-    template<typename T> void WriteToClient(ClientS& client, T&& var) { Write(client, std::string(&var, sizeof(var))); }
-    template<> void WriteToClient<std::string_view const&>(ClientS& client, const std::string_view& data);
+    template<typename T> void WriteToClient(BasicClientS& client, T const* arrPtr, size_t arrSize) { _WriteToClient(client, arrPtr, arrSize * sizeof(T)); }
+    template<typename T> void WriteToClient(BasicClientS& client, T&& var) { WriteToClient(client, &var, 1); }
     void Shutdown();
-    inline std::list<ClientS> const& gClients() const { return ActiveClients; }
+    inline std::vector<std::unique_ptr<BasicClientS>> const& gClients() const { return Clients; }
 };

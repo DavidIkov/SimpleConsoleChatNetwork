@@ -5,6 +5,7 @@
 void BasicClientC::_StartReading_Async() {
     Socket.async_read_some(asio::buffer(SocketBuffer, sizeof(SocketBuffer)), [&](asio::error_code ec, size_t bytes) {
         if (ec) {
+            //todo dosent disconnect if server reset connection
             if (ec == asio::error::eof) {
                 OutputMacro << "Server disconnected, stopping reading"
                     << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
@@ -81,12 +82,12 @@ void BasicClientC::OnRead(size_t bytesRead) {
     for (size_t i = 0;i < bytesRead;i++) OutputMacro << SocketBuffer[i];
     OutputMacro << OutputtingProcPtr->EndLine;
 }
-template<> void BasicClientC::Write<const std::string_view&>(const std::string_view& data) {
-    if (!data.empty()) {
+void BasicClientC::_Write(void const* arr, size_t lenInBytes) {
+    if (lenInBytes != 0) {
         size_t bytesOffset = 0;
         asio::error_code ec;
         while ((bytesOffset +=
-            Socket.write_some(asio::buffer(data.data() + bytesOffset, data.size() - bytesOffset), ec)) != data.size())
+            Socket.write_some(asio::buffer((char*)arr + bytesOffset, lenInBytes - bytesOffset), ec)) != lenInBytes)
             if (ec) {
                 if (ec == asio::error::operation_aborted) OutputMacro << "Canceled writing to socket" <<
                     ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;

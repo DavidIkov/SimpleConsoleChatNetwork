@@ -2,7 +2,12 @@
 
 #define OutputMacro ((OutputtingProcPtr==nullptr)?ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC():*OutputtingProcPtr)
 
-void BasicServerC::_StartReading(ClientS& client) {
+void BasicServerC::_RemoveClient(BasicClientS& client) {
+    for (size_t i = 0;i < Clients.size();i++) {
+        if (&*Clients[i] == &client) { Clients.erase(Clients.begin() + i); return; }
+    }
+}
+void BasicServerC::_StartReading(BasicClientS& client) {
     client.Socket.async_read_some(asio::buffer(client.ReadBuffer, sizeof(client.ReadBuffer)), [&](asio::error_code ec, size_t bytes) {
         if (ec) {
             if (ec == asio::error::eof) {
@@ -11,7 +16,7 @@ void BasicServerC::_StartReading(ClientS& client) {
                 client.Socket.shutdown(client.Socket.shutdown_both);
                 client.Socket.close();
                 OnDisconnect(client);
-                ActiveClients.remove_if([&](auto& v)->bool {return &v.Socket == &client.Socket;});
+                _RemoveClient(client);
                 return;
             }
             else if (ec == asio::error::operation_aborted) {
@@ -28,7 +33,7 @@ void BasicServerC::_StartReading(ClientS& client) {
                 client.Socket.shutdown(client.Socket.shutdown_both);
                 client.Socket.close();
                 OnDisconnect(client);
-                ActiveClients.remove_if([&](auto& v)->bool {return &v.Socket == &client.Socket;});
+                _RemoveClient(client);
                 return;
             }
             else {
@@ -38,7 +43,7 @@ void BasicServerC::_StartReading(ClientS& client) {
                 client.Socket.shutdown(client.Socket.shutdown_both);
                 client.Socket.close();
                 OnDisconnect(client);
-                ActiveClients.remove_if([&](auto& v)->bool {return &v.Socket == &client.Socket;});
+                _RemoveClient(client);
                 return;
             }
         }
@@ -46,8 +51,12 @@ void BasicServerC::_StartReading(ClientS& client) {
         _StartReading(client);
         });
 }
+BasicServerC::BasicClientS& BasicServerC::ClientFactory() {
+    return *Clients.emplace(Clients.begin(), new BasicClientS(AsioContext.get()))->get();
+}
 void BasicServerC::_AcceptConnection() {
-    ClientS& client = ActiveClients.emplace_front(AsioContext.get());
+    std::unique_ptr<int> k(new int);
+    BasicClientS& client = ClientFactory();
     ConnectionsAcceptor.async_accept(client.Socket, [&](asio::error_code ec) {
         if (ec) {
             if (ec == asio::error::operation_aborted) {
@@ -78,12 +87,12 @@ BasicServerC::BasicServerC(asio::io_context& asioContext, asio::ip::port_type po
 BasicServerC::~BasicServerC() {
     Shutdown();
 }
-template<> void BasicServerC::WriteToClient<std::string_view const&>(ClientS& client, const std::string_view& data) {
-    if (!data.empty()) {
+void BasicServerC::_WriteToClient(BasicClientS& client, void const* arr, size_t lenInBytes) {
+    if (lenInBytes != 0) {
         size_t bytesOffset = 0;
         asio::error_code ec;
         while ((bytesOffset +=
-            client.Socket.write_some(asio::buffer(data.data() + bytesOffset, data.size() - bytesOffset), ec)) != data.size())
+            client.Socket.write_some(asio::buffer((char*)arr + bytesOffset, lenInBytes - bytesOffset), ec)) != lenInBytes)
             if (ec) {
                 if (ec == asio::error::operation_aborted) OutputMacro << "Canceled writing to socket" <<
                     ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
@@ -95,12 +104,12 @@ template<> void BasicServerC::WriteToClient<std::string_view const&>(ClientS& cl
 void BasicServerC::Shutdown() {
     if (ConnectionsAcceptor.is_open()) {
         ConnectionsAcceptor.close();
-        for (auto& client : ActiveClients)
-            if (client.Socket.is_open()) {
-                client.Socket.shutdown(client.Socket.shutdown_both);
-                client.Socket.close();
+        for (auto& client : Clients)
+            if (client.get()->Socket.is_open()) {
+                client.get()->Socket.shutdown(client.get()->Socket.shutdown_both);
+                client.get()->Socket.close();
             }
-        ActiveClients.clear();
+        Clients.clear();
         OutputMacro << "Server shutdown"
             << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
     }

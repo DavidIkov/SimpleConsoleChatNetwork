@@ -19,7 +19,7 @@ namespace ConsoleCommandsNS {
             {"list clients",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc){
                 auto const& clients = DataForCommands.Server->gClients();
                 for (auto client = ++clients.begin();client != clients.end();++client) {
-                    outProc << client->Socket.remote_endpoint().address().to_string() << outProc.EndLine;
+                    outProc << client->get()->Socket.remote_endpoint().address().to_string() << outProc.EndLine;
                 }
             }},
             {"exit",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&){

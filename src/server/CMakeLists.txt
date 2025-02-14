@@ -5,6 +5,7 @@ add_executable(${PROJECT_NAME}
 src/main.cpp 
 src/ServerClass/BasicServer.cpp
 src/ServerClass/EventsServer.cpp
+src/ServerClass/ChatServer.cpp
 )
 
 set_property(TARGET ${CMAKE_PROJECT_NAME} PROPERTY CXX_STANDARD 17)

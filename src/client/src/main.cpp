@@ -8,8 +8,7 @@
 #include<condition_variable>
 #include<functional>
 #include"RemoveArrayPointer.hpp"
-#include"ClientClass/BasicClient.hpp"
-#include"ClientClass/EventsClient.hpp"
+#include"ClientClass/ChatClient.hpp"
 #include"ConsoleCommands.hpp"
 
 int main(int argc, char** argv) {
@@ -20,7 +19,7 @@ int main(int argc, char** argv) {
     asio::io_context::work IdleWork(CurContext);
     std::thread ContextThread([&] {CurContext.run();});
     
-    EventsClientC Client(CurContext);
+    ChatClientC Client(CurContext);
 
     ConsoleCommandsNS::DataForCommands.Client = &Client;
 

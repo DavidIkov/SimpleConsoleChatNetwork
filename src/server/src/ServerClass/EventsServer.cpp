@@ -1,10 +1,9 @@
 #include"EventsServer.hpp"
 #include<algorithm>
 
-
-void EventsServerC::_OnReadWithOffset(ClientS& client, size_t bytesLeft, char* start) {
+void EventsServerC::_OnReadWithOffset(BasicClientS& client, size_t bytesLeft, char* start) {
     if (bytesLeft == 0) return;
-    if (CurEvent.BytesReaded <= sizeof(CurEvent.Type)) {
+    if (CurEvent.BytesReaded < sizeof(CurEvent.Type)) {
         //header of event is not fully read
         size_t headerBytesLeft = std::min(sizeof(CurEvent.Type) - CurEvent.BytesReaded, bytesLeft);
         memcpy((char*)&CurEvent.Type + CurEvent.BytesReaded, start, headerBytesLeft);
@@ -20,7 +19,7 @@ void EventsServerC::_OnReadWithOffset(ClientS& client, size_t bytesLeft, char* s
         size_t dataBytesLeft = std::min(CurEvent.BytesLeftToRead, bytesLeft);
         memcpy((char*)&CurEvent.Data + (CurEvent.BytesReaded - sizeof(CurEvent.Type)), start, dataBytesLeft);
         CurEvent.BytesLeftToRead -= dataBytesLeft; CurEvent.BytesReaded += dataBytesLeft;
-        if (dataBytesLeft == 0) {//event is finished reading
+        if (CurEvent.BytesLeftToRead == 0) {//event is finished reading
             OnEvent(client, CurEvent.Type, CurEvent.Data);
             CurEvent.BytesReaded = 0;
         }

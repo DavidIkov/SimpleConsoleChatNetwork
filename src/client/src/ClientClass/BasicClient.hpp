@@ -26,16 +26,17 @@ public:
         }
         inline ~OutputtingProcPtrWrapperC() { Client.sOutputtingProcPtr(nullptr); }
     };
-
-    virtual void Connect(asio::ip::tcp::endpoint ep);
-    virtual void Disconnect();
+    inline bool gIsConnected() const { return Socket.is_open(); }
+    void Connect(asio::ip::tcp::endpoint ep);
+    void Disconnect();
 protected:
     inline virtual void OnConnect() {};
     inline virtual void OnDisconnect() {};
     //by default just prints out everything received
     virtual void OnRead(size_t bytesRead);
+private:
+    void _Write(void const* arr, size_t lenInBytes);
 public:
-    template<typename T> void Write(T&& var) { Write(std::string_view(&var, sizeof(var))); }
-    //used to send data that is stored in some adress
-    template<> void Write<const std::string_view&>(const std::string_view& data);
+    template<typename T> void Write(T const* arrPtr, size_t arrSize) { _Write(arrPtr, arrSize * sizeof(T)); }
+    template<typename T> void Write(T&& var) { Write(&var, 1); }
 };

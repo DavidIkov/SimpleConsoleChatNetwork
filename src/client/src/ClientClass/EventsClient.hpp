@@ -5,10 +5,9 @@
 class EventsClientC :virtual public BasicClientC {
 public:
     using BasicClientC::BasicClientC;
-    virtual ~EventsClientC() = default;
+    virtual ~EventsClientC() override = default;
 private:
     using BasicClientC::Write;
-
     struct{
         //in this case END_OF_ENUM will be used to mark that no event is begin received at the moment
         NetworkEventsNS::EventsTypesToClientE Type;
@@ -18,8 +17,9 @@ private:
     } CurEvent;
     void _OnReadWithOffset(size_t bytesLeft, char* start);
     virtual void OnRead(size_t bytesRead) override final { _OnReadWithOffset(bytesRead, SocketBuffer); }
-public:
+protected:
     inline virtual void OnEvent(NetworkEventsNS::EventsTypesToClientE eventType, NetworkEventsNS::EventTypeToClientU const& eventData) {};
+public:
     template<NetworkEventsNS::EventsTypesToServerE EventTypeEnum>
     void SendEvent(const NetworkEventsNS::EventTypeToServerS<EventTypeEnum>& eventData) {
         Write(EventTypeEnum);
