@@ -22,7 +22,9 @@ namespace NetworkEventsNS {
     };
     template<> struct EventTypeToClientS<EventsTypesToClientE::LoginRequest> {};
     template<> struct EventTypeToClientS<EventsTypesToClientE::LoginResult> {
-        bool Pass;
+        enum class RespTypeE :unsigned char {
+            Banned, WrongPassword, RegisteredAsNewUser, RegisteredAsExistingUser
+        } RespType;
     };
 
     union EventTypeToClientU {

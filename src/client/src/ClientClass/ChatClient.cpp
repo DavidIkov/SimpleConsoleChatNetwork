@@ -2,34 +2,62 @@
 
 #define OutputMacro ((OutputtingProcPtr==nullptr)?ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC():*OutputtingProcPtr)
 
-void ChatClientC::OnEvent(NetworkEventsNS::EventsTypesToClientE eventType, NetworkEventsNS::EventTypeToClientU const& eventData) {
+using namespace NetworkEventsNS;
+
+void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU const& eventData) {
+    std::lock_guard lg(EventMutex);
     switch (eventType) {
-    case NetworkEventsNS::EventsTypesToClientE::ClientConnected: {
+    case EventsTypesToClientE::ClientConnected: {
         break;
     }
-    case NetworkEventsNS::EventsTypesToClientE::ClientDisconnected: {
+    case EventsTypesToClientE::ClientDisconnected: {
         break;
     }
-    case NetworkEventsNS::EventsTypesToClientE::LoginRequest: {
-        WaitingForLogin = true;
+    case EventsTypesToClientE::LoginRequest: {
+        ServerIsWaitingForLogin = true;
+        break;
     }
-    case NetworkEventsNS::EventsTypesToClientE::LoginResult: {
-        if (eventData.LoginResult.Pass) {
+    case EventsTypesToClientE::LoginResult: {
+        switch (eventData.LoginResult.RespType) {
+        case EventTypeToClientS<EventsTypesToClientE::LoginResult>::RespTypeE::Banned: {
+            OutputMacro << "login failed, user is banned" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+            break;
+        }
+        case EventTypeToClientS<EventsTypesToClientE::LoginResult>::RespTypeE::WrongPassword: {
+            OutputMacro << "login failed, wrong password" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+            break;
+        }
+        case EventTypeToClientS<EventsTypesToClientE::LoginResult>::RespTypeE::RegisteredAsNewUser: {
+            OutputMacro << "login succeed, registered as new user" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+            ServerIsWaitingForLogin = false;
             RegisteredInServer = true;
-            WaitingForLogin = false;
+            break;
         }
-        else {
-            RegisteredInServer = false;
-            WaitingForLogin = true;
+        case EventTypeToClientS<EventsTypesToClientE::LoginResult>::RespTypeE::RegisteredAsExistingUser: {
+            OutputMacro << "login succeed, registered as existing user" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+            ServerIsWaitingForLogin = false;
+            RegisteredInServer = true;
+            break;
         }
+        default: {
+            OutputMacro << "unknown server respond to a login attempt" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+            break;
+        }
+        }
+        break;
     }
-    default: break;
+    default: {
+        OutputMacro << "unknown event on client" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+        break;
+    }
     }
 }
 void ChatClientC::OnConnect(){
+    std::lock_guard lg(EventMutex);
     //todo not sure if there is need to do anything, maybe remove this event
 }
 void ChatClientC::OnDisconnect() {
-    WaitingForLogin = false;
+    std::lock_guard lg(EventMutex);
+    ServerIsWaitingForLogin = false;
     RegisteredInServer = false;
 }

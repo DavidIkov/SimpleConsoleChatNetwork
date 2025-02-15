@@ -9,6 +9,8 @@ void BasicClientC::_StartReading_Async() {
             if (ec == asio::error::eof) {
                 OutputMacro << "Server disconnected, stopping reading"
                     << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                Socket = asio::ip::tcp::socket(Context.get());
+                OnDisconnect();
             }
             else if (ec == asio::error::operation_aborted) {
                 OutputMacro << "Client closed socket, stopping reading"
@@ -17,11 +19,14 @@ void BasicClientC::_StartReading_Async() {
             else if (ec == asio::error::connection_reset) {
                 OutputMacro << "Server reseted connection, stopping reading"
                     << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                Socket = asio::ip::tcp::socket(Context.get());
+                OnDisconnect();
             }
             else {
                 OutputMacro << "Unhandled error occured while reading "
                     << ec.value() << ' ' << ec.message()
                     << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                Disconnect();
             }
             return;
         }
@@ -55,7 +60,7 @@ void BasicClientC::Connect(asio::ip::tcp::endpoint ep) {
 void BasicClientC::Disconnect() {
     if (!Socket.is_open()) {
         OutputMacro << "Cant disconnect socket since it isnt connected to anything"
-        << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+            << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
         return;
     }
     asio::error_code ec;

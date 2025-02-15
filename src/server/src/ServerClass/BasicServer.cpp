@@ -54,8 +54,7 @@ void BasicServerC::_StartReading(BasicClientS& client) {
 BasicServerC::BasicClientS& BasicServerC::ClientFactory() {
     return *Clients.emplace(Clients.begin(), new BasicClientS(AsioContext.get()))->get();
 }
-void BasicServerC::_AcceptConnection() {
-    std::unique_ptr<int> k(new int);
+void BasicServerC::StartAcceptingConnections() {
     BasicClientS& client = ClientFactory();
     ConnectionsAcceptor.async_accept(client.Socket, [&](asio::error_code ec) {
         if (ec) {
@@ -74,7 +73,7 @@ void BasicServerC::_AcceptConnection() {
             << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
         OnConnect();
         _StartReading(client);
-        _AcceptConnection();
+        StartAcceptingConnections();
         });
 
 }
@@ -82,7 +81,6 @@ BasicServerC::BasicServerC(asio::io_context& asioContext, asio::ip::port_type po
     AsioContext(asioContext), ConnectionsAcceptor(asioContext, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {
     OutputMacro << "Server is up"
         << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
-    _AcceptConnection();
 }
 BasicServerC::~BasicServerC() {
     Shutdown();

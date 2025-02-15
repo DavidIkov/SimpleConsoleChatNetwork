@@ -9,6 +9,7 @@ int main(int argc, char** argv) {
     asio::io_context::work IdleWork(CurContext);
     std::thread ContextThread([&] {CurContext.run();});
     ChatServerC server(CurContext, 16120);
+    server.StartAcceptingConnections();
 
     ConsoleCommandsNS::DataForCommands.Server = &server;
     std::thread th = ConsoleCommandsNS::InitializeConsoleReadingThread();

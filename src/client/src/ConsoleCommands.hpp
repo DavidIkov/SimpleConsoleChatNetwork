@@ -46,8 +46,8 @@ namespace ConsoleCommandsNS {
                     outProc<<"cant login when client is not connected to any server"<<outProc.EndLine;
                     return;
                 }
-                else if (!DataForCommands.Client->gIsWaitingForLogin()) {
-                    if (DataForCommands.Client->gIsRegisteredInServer()) {
+                else if (!DataForCommands.Client->gServerIsWaitingForLogin()) {
+                    if (DataForCommands.Client->gRegisteredInServer()) {
                         outProc << "cant login since client is already registered in server" << outProc.EndLine;
                         return;
                     }

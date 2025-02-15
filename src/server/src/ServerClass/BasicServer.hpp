@@ -19,7 +19,6 @@ protected:
 private:
     void _RemoveClient(BasicClientS& client);
     void _StartReading(BasicClientS& client);
-    void _AcceptConnection();
 protected:
     virtual BasicClientS& ClientFactory();
 public:
@@ -46,6 +45,8 @@ public:
     virtual ~BasicServerC();
     BasicServerC& operator=(BasicServerC&&) = default;
     BasicServerC& operator=(const BasicServerC&) = delete;
+
+    void StartAcceptingConnections();
 protected:
     //connected client is always first in list
     inline virtual void OnConnect() {};

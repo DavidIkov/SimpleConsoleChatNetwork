@@ -10,13 +10,14 @@ private:
 private:
     virtual void OnConnect() override final;
     virtual void OnDisconnect() override final;
+    std::mutex EventMutex;
     
 private:
-    bool WaitingForLogin = false;
+    bool ServerIsWaitingForLogin = false;
     bool RegisteredInServer = false;//means that login was correct and so server accepted it
 public:
-    inline bool gIsRegisteredInServer() const noexcept { return RegisteredInServer; }
-    inline bool gIsWaitingForLogin() const noexcept { return WaitingForLogin; }
+    inline bool gRegisteredInServer() const noexcept { return RegisteredInServer; }
+    inline bool gServerIsWaitingForLogin() const noexcept { return ServerIsWaitingForLogin; }
 
 private:
 };
