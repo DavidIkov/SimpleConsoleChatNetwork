@@ -18,7 +18,3 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${RES_DIR}/ConsoleManager)
 add_subdirectory(${RES_DIR}/ConsoleManager ConsoleManagerBuild)
 target_link_directories(${PROJECT_NAME} PRIVATE ConsoleManagerBuild)
 target_link_libraries(${PROJECT_NAME} ConsoleManager)
-
-include(CTest)
-enable_testing()
-

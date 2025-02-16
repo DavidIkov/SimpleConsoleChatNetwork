@@ -11,7 +11,7 @@ protected:
         bool WaitingForLogin = false;
         bool Registered = false;//means that login was correct and so server accepted it
         using BasicClientS::BasicClientS;
-        virtual ~ChatClientS() = default;
+        virtual ~ChatClientS() { std::lock_guard lg(EventMutex); }
     };
     virtual BasicClientS& ClientFactory() override;
 private:

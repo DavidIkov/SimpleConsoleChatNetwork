@@ -24,7 +24,6 @@ void BasicServerC::_StartReading(BasicClientS& client) {
                     << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                 //no need for shutdown and close and removing of socket since this code will happen only on shutdown, 
                 //so its done forcefully and i can rely on caller to do allat
-                OnDisconnect(client);
                 return;
             }
             else if (ec == asio::error::connection_reset) {
@@ -104,11 +103,11 @@ void BasicServerC::Shutdown() {
         ConnectionsAcceptor.close();
         for (auto& client : Clients)
             if (client.get()->Socket.is_open()) {
+                OnDisconnect(*client.get());
                 client.get()->Socket.shutdown(client.get()->Socket.shutdown_both);
                 client.get()->Socket.close();
             }
         Clients.clear();
-        OutputMacro << "Server shutdown"
-            << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+        OutputMacro << "Server shutdown" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
     }
 }
