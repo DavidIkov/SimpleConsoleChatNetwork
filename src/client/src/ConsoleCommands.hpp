@@ -1,6 +1,5 @@
 #pragma once
 #include"AsioInclude.hpp"
-#include"RemoveArrayPointer.hpp"
 #include"ConsoleManager.hpp"
 #include"ClientClass/ChatClient.hpp"
 #include<string>
@@ -66,7 +65,7 @@ namespace ConsoleCommandsNS {
                 default: outProc << "unhandled error" << outProc.EndLine; return;
                 }
             }},
-            {"logoff",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) {
+            {"logout",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) {
                 ChatClientC::LogOutResultE res = DataForCommandsNS::Client->LogOut();
                 switch (res) {
                 case ChatClientC::LogOutResultE::NoErrors: return;
@@ -114,7 +113,7 @@ namespace ConsoleCommandsNS {
                         }
                     }
                 }
-                std::remove_array_pointer_t<decltype(ConsoleCommandsNS::CommandsNS::Commands)>* fcom = nullptr;
+                std::remove_all_extents_t<decltype(ConsoleCommandsNS::CommandsNS::Commands)>* fcom = nullptr;
                 for (size_t ci = 0;ci < ConsoleCommandsNS::CommandsNS::CommandsAmount;ci++) {
                     auto& com = ConsoleCommandsNS::CommandsNS::Commands[ci];
                     if (CommandBuffer.compare(0, com.first.size(), com.first) == 0) {

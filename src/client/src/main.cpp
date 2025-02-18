@@ -7,7 +7,6 @@
 #include<queue>
 #include<condition_variable>
 #include<functional>
-#include"RemoveArrayPointer.hpp"
 #include"ClientClass/ChatClient.hpp"
 #include"ConsoleCommands.hpp"
 

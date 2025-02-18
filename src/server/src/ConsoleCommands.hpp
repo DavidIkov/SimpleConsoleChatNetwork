@@ -1,6 +1,5 @@
 #pragma once
 #include"AsioInclude.hpp"
-#include"RemoveArrayPointer.hpp"
 #include"ConsoleManager.hpp"
 #include"ServerClass/BasicServer.hpp"
 #include<string>
@@ -57,7 +56,7 @@ namespace ConsoleCommandsNS {
                         }
                     }
                 }
-                std::remove_array_pointer_t<decltype(ConsoleCommandsNS::CommandsNS::Commands)>* fcom = nullptr;
+                std::remove_all_extents_t<decltype(ConsoleCommandsNS::CommandsNS::Commands)>* fcom = nullptr;
                 for (size_t ci = 0;ci < ConsoleCommandsNS::CommandsNS::CommandsAmount;ci++) {
                     auto& com = ConsoleCommandsNS::CommandsNS::Commands[ci];
                     if (CommandBuffer.compare(0, com.first.size(), com.first) == 0) {
