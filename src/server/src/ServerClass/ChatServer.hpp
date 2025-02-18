@@ -7,9 +7,9 @@ public:
     virtual ~ChatServerC() override = default;
 protected:
     struct ChatClientS :virtual public BasicClientS {
-        std::mutex EventMutex;
-        bool WaitingForLogin = false;
+        std::recursive_mutex EventMutex;
         bool Registered = false;//means that login was correct and so server accepted it
+        size_t UserInd = 0;//index in vector of registered users
         using BasicClientS::BasicClientS;
         virtual ~ChatClientS() { std::lock_guard lg(EventMutex); }
     };

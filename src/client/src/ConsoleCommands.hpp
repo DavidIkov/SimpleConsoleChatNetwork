@@ -43,18 +43,12 @@ namespace ConsoleCommandsNS {
             }},
             {"login",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc){
                 if (!DataForCommands.Client->gIsConnected()) {
-                    outProc<<"cant login when client is not connected to any server"<<outProc.EndLine;
+                    outProc << "cant login when client is not connected to any server" << outProc.EndLine;
                     return;
                 }
-                else if (!DataForCommands.Client->gServerIsWaitingForLogin()) {
-                    if (DataForCommands.Client->gRegisteredInServer()) {
-                        outProc << "cant login since client is already registered in server" << outProc.EndLine;
-                        return;
-                    }
-                    else {
-                        outProc << "cant login since server is not waiting for login at the moment" << outProc.EndLine;
-                        return;
-                    }
+                else if (DataForCommands.Client->gRegisteredInServer()) {
+                    outProc << "cant login since client is already registered in server" << outProc.EndLine;
+                    return;
                 }
                 size_t fs = CommandBuffer.find_first_of(' ');
                 size_t ss = CommandBuffer.find_first_of(' ', fs + 1);
@@ -73,7 +67,7 @@ namespace ConsoleCommandsNS {
                     outProc << "password is too long, max length is " << NetworkEventsNS::ClientPasswordMaxLen - 1 << outProc.EndLine;
                     return;
                 }
-                NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::LoginRequestRespond> evData;
+                NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::LogInUser> evData;
                 std::memcpy(&evData.Username, userStr.data(), userStr.size() + 1);
                 std::memcpy(&evData.Password, passStr.data(), passStr.size() + 1);
                 DataForCommands.Client->SendEvent(evData);

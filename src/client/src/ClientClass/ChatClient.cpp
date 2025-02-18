@@ -7,14 +7,10 @@ using namespace NetworkEventsNS;
 void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU const& eventData) {
     std::lock_guard lg(EventMutex);
     switch (eventType) {
-    case EventsTypesToClientE::ClientConnected: {
+    case EventsTypesToClientE::UserConnected: {
         break;
     }
-    case EventsTypesToClientE::ClientDisconnected: {
-        break;
-    }
-    case EventsTypesToClientE::LoginRequest: {
-        ServerIsWaitingForLogin = true;
+    case EventsTypesToClientE::UserDisconnected: {
         break;
     }
     case EventsTypesToClientE::LoginResult: {
@@ -29,13 +25,11 @@ void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU con
         }
         case EventTypeToClientS<EventsTypesToClientE::LoginResult>::RespTypeE::RegisteredAsNewUser: {
             OutputMacro << "login succeed, registered as new user" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
-            ServerIsWaitingForLogin = false;
             RegisteredInServer = true;
             break;
         }
         case EventTypeToClientS<EventsTypesToClientE::LoginResult>::RespTypeE::RegisteredAsExistingUser: {
             OutputMacro << "login succeed, registered as existing user" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
-            ServerIsWaitingForLogin = false;
             RegisteredInServer = true;
             break;
         }
@@ -58,6 +52,5 @@ void ChatClientC::OnConnect(){
 }
 void ChatClientC::OnDisconnect() {
     std::lock_guard lg(EventMutex);
-    ServerIsWaitingForLogin = false;
     RegisteredInServer = false;
 }

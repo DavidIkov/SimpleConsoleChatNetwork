@@ -13,11 +13,9 @@ private:
     std::mutex EventMutex;
     
 private:
-    bool ServerIsWaitingForLogin = false;
     bool RegisteredInServer = false;//means that login was correct and so server accepted it
 public:
     inline bool gRegisteredInServer() const noexcept { return RegisteredInServer; }
-    inline bool gServerIsWaitingForLogin() const noexcept { return ServerIsWaitingForLogin; }
 
 private:
 };
