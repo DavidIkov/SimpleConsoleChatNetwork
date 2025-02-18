@@ -7,17 +7,18 @@
 #include<mutex>
 namespace ConsoleCommandsNS {
 
-    struct {
-        BasicServerC* Server = nullptr;
-    } DataForCommands;
+    namespace DataForCommandsNS {
+        inline BasicServerC* Server = nullptr;
+    }
     
-    std::mutex Mutex;
-    std::string CommandBuffer;
-    bool StopReading = false;
+    inline std::mutex Mutex;
+    inline std::string CommandBuffer;
+    inline bool StopReading = false;
     namespace CommandsNS {
+        extern const size_t CommandsAmount;
         std::pair<std::string_view, void(*)(ConsoleManagerNS::OutputNS::OutputtingProcessC&)> Commands[] = {
             {"list clients",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc){
-                auto const& clients = DataForCommands.Server->gClients();
+                auto const& clients = DataForCommandsNS::Server->gClients();
                 for (auto client = ++clients.begin();client != clients.end();++client) {
                     outProc << client->get()->Socket.remote_endpoint().address().to_string() << outProc.EndLine;
                 }
@@ -25,7 +26,7 @@ namespace ConsoleCommandsNS {
             {"exit",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&){
                 StopReading = true;
             }}
-        }; constexpr size_t CommandsAmount = sizeof(Commands) / sizeof(std::remove_array_pointer_t<decltype(Commands)>);
+        }; inline constexpr size_t CommandsAmount = std::extent_v<decltype(Commands)>;
     }
 
     

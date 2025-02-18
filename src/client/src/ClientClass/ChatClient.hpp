@@ -10,12 +10,22 @@ private:
 private:
     virtual void OnConnect() override final;
     virtual void OnDisconnect() override final;
-    std::mutex EventMutex;
-    
+    std::recursive_mutex EventMutex;
+
 private:
-    bool RegisteredInServer = false;//means that login was correct and so server accepted it
+    bool LoggedInUserInServer = false;
 public:
-    inline bool gRegisteredInServer() const noexcept { return RegisteredInServer; }
+    inline bool gIsLoggedInUserInServer() const noexcept { return LoggedInUserInServer; }
+    enum class LogInResultE :unsigned char {
+        NoErrors, NotConnectedToServer, AlreadyLogged, UsernameTooLong, PasswordTooLong
+    };
+    inline LogInResultE LogIn(char const* username, char const* password) { return LogIn(std::string(username), std::string(password)); }
+    LogInResultE LogIn(std::string username, std::string password);
+    enum class LogOutResultE :unsigned char {
+        NoErrors, NotConnectedToServer, NotLoggedIn
+    };
+    LogOutResultE LogOut();
+
 
 private:
 };

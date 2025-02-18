@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     ChatServerC server(CurContext, 16120);
     server.StartAcceptingConnections();
 
-    ConsoleCommandsNS::DataForCommands.Server = &server;
+    ConsoleCommandsNS::DataForCommandsNS::Server = &server;
     std::thread th = ConsoleCommandsNS::InitializeConsoleReadingThread();
     th.join();
     server.Shutdown();

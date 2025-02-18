@@ -27,7 +27,7 @@ void ChatServerC::OnEvent(BasicClientS& client, EventsTypesToServerE eventType, 
     }
     case EventsTypesToServerE::ClientDisconnected: {
         if (chatClient.Registered)
-            OnEvent(client, EventsTypesToServerE::UnlogFromUser, {});
+            OnEvent(client, EventsTypesToServerE::LogOutFromUser, {});
         OutputMacro << "client disconnected" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
         break;
     }
@@ -40,22 +40,22 @@ void ChatServerC::OnEvent(BasicClientS& client, EventsTypesToServerE eventType, 
                 if (std::strcmp(user.Username, respData.Username) == 0) {
                     foundUser = true;
                     if (user.Banned) {
-                        SendEvent(client, EventTypeToClientS<EventsTypesToClientE::LoginResult>{
-                            EventTypeToClientS<EventsTypesToClientE::LoginResult>::RespTypeE::Banned });
+                        SendEvent(client, EventTypeToClientS<EventsTypesToClientE::LogInResult>{
+                            EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::Banned });
                         OutputMacro << "client tried to register as user \"" << user.Username << "\" which is banned"
                             << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                     }
                     else if (std::strcmp(user.Password, respData.Password) == 0) {
                         chatClient.Registered = true;
                         chatClient.UserInd = userInd;
-                        SendEvent(client, EventTypeToClientS<EventsTypesToClientE::LoginResult>{
-                            EventTypeToClientS<EventsTypesToClientE::LoginResult>::RespTypeE::RegisteredAsExistingUser });
+                        SendEvent(client, EventTypeToClientS<EventsTypesToClientE::LogInResult>{
+                            EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::LoggedAsExistingUser });
                         OutputMacro << "client registered as existing user \"" << user.Username << "\""
                             << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                     }
                     else {
-                        SendEvent(client, EventTypeToClientS<EventsTypesToClientE::LoginResult>{
-                            EventTypeToClientS<EventsTypesToClientE::LoginResult>::RespTypeE::WrongPassword });
+                        SendEvent(client, EventTypeToClientS<EventsTypesToClientE::LogInResult>{
+                            EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::WrongPassword });
                         OutputMacro << "client tried to register as user \"" << user.Username << "\" but got password wrong"
                             << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                     }
@@ -68,15 +68,15 @@ void ChatServerC::OnEvent(BasicClientS& client, EventsTypesToServerE eventType, 
                 RegisteredUsers.emplace_back();
                 std::memcpy(&RegisteredUsers.rbegin()->Username, respData.Username, ClientUsernameMaxLen);
                 std::memcpy(&RegisteredUsers.rbegin()->Password, respData.Password, ClientPasswordMaxLen);
-                SendEvent(client, EventTypeToClientS<EventsTypesToClientE::LoginResult>{
-                    EventTypeToClientS<EventsTypesToClientE::LoginResult>::RespTypeE::RegisteredAsNewUser});
+                SendEvent(client, EventTypeToClientS<EventsTypesToClientE::LogInResult>{
+                    EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::LoggedAsNewUser});
                 OutputMacro << "client registered as new user \"" << respData.Username << "\""
                     << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
             }
         }
         break;
     }
-    case EventsTypesToServerE::UnlogFromUser: {
+    case EventsTypesToServerE::LogOutFromUser: {
         if (chatClient.Registered) {
             chatClient.Registered = false;
             OutputMacro << "user " << RegisteredUsers[chatClient.UserInd].Username << " unlogged"

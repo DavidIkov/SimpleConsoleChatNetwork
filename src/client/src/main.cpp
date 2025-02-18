@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     
     ChatClientC Client(CurContext);
 
-    ConsoleCommandsNS::DataForCommands.Client = &Client;
+    ConsoleCommandsNS::DataForCommandsNS::Client = &Client;
 
     ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC() << "Client is running!" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
 
