@@ -66,27 +66,37 @@ namespace ConsoleCommandsNS {
                 }
                 if (fcom == nullptr) outProc << "Command not found" << outProc.EndLine;
                 else {
-                    /*
                     char curScrollSymbol = '/';
                     std::mutex scrollSymbolMutex;
                     std::condition_variable scrollSymbolCV;
                     bool stopScrollingSymbol = false;
+                    bool longCommand = false;
                     std::thread scrollingSymbolTh([&] {
+                        {
+                            std::unique_lock ul(scrollSymbolMutex);
+                            //if command takes more than two seconds
+                            scrollSymbolCV.wait_for(ul, std::chrono::seconds(2), [&] { return stopScrollingSymbol; });
+                            if (stopScrollingSymbol) return;
+                            longCommand = true;
+                        }
                         while (true) {
                             std::unique_lock ul(scrollSymbolMutex);
-                            std::cout << '\b' << curScrollSymbol << std::flush;
+                            outProc << curScrollSymbol << '\b' << outProc.FlushOutput;
                             if (curScrollSymbol == '/') curScrollSymbol = '-';
                             else if (curScrollSymbol == '-') curScrollSymbol = '\\';
                             else if (curScrollSymbol == '\\') curScrollSymbol = '|';
                             else if (curScrollSymbol == '|') curScrollSymbol = '/';
                             using namespace std::chrono_literals;
                             scrollSymbolCV.wait_for(ul, 300ms, [&] { return stopScrollingSymbol;});
-                            if (stopScrollingSymbol) { std::cout << "\b \b" << std::flush; return; }
+                            if (stopScrollingSymbol) { outProc << " \bCommand finished!" << outProc.FlushOutput; return; }
                         }
-                        });*/
+                        });
                     fcom->second(outProc);
-                    //stopScrollingSymbol = true; scrollSymbolCV.notify_all();
-                    //scrollingSymbolTh.join();
+                    {
+                        std::lock_guard lg(scrollSymbolMutex);
+                        stopScrollingSymbol = true; scrollSymbolCV.notify_all();
+                    }
+                    scrollingSymbolTh.join();
                 }
                 CommandBuffer.resize(0);
                 if (StopReading) return;
