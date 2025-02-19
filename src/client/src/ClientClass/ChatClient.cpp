@@ -1,12 +1,22 @@
 #include"ChatClient.hpp"
 
-#define OutputMacro ((OutputtingProcPtr==nullptr)?ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC():*OutputtingProcPtr)
+#define OutputMacro ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC()
 
 using namespace NetworkEventsNS;
 
 void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU const& eventData) {
-    std::lock_guard lg(EventMutex);
+    std::lock_guard lg(ClientMutex);
     switch (eventType) {
+    case EventsTypesToClientE::ConnectedToServer: {
+        OutputMacro << "Connected to server" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+        break;
+    }
+    case EventsTypesToClientE::DisconnectedFromServer: {
+        //todo handle reasons of disconnect
+        LoggedInUserInServer = false;
+        OutputMacro << "Disconnected from server" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+        break;
+    }
     case EventsTypesToClientE::UserConnected: {
         break;
     }
@@ -45,14 +55,6 @@ void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU con
         break;
     }
     }
-}
-void ChatClientC::OnConnect(){
-    std::lock_guard lg(EventMutex);
-    //todo not sure if there is need to do anything, maybe remove this event
-}
-void ChatClientC::OnDisconnect() {
-    std::lock_guard lg(EventMutex);
-    LoggedInUserInServer = false;
 }
 
 auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResultE {

@@ -1,42 +1,54 @@
 #pragma once
 #include"AsioInclude.hpp"
 #include"ConsoleManager.hpp"
+
+//todo this shouldnt be here, but it is required since DisconnectReasonsE is located here,
+//maybe in future move the "special" local events to some other place where it would make sence
+#include"NetworkEvents.hpp"
+
 //basic client functionality
 class BasicClientC {
-protected:
+private:
     std::reference_wrapper<asio::io_context> Context;
     asio::ip::tcp::socket Socket;
+protected:
     char SocketBuffer[64];
-    ConsoleManagerNS::OutputNS::OutputtingProcessC* OutputtingProcPtr = nullptr;
+private:
     void _StartReading_Async();
+protected:
+    mutable std::recursive_mutex ClientMutex;
+private:
+    bool ConnectedToServer = false;
 public:
     BasicClientC(asio::io_context& context);
     virtual ~BasicClientC() = default;
 
-    inline void sOutputtingProcPtr(ConsoleManagerNS::OutputNS::OutputtingProcessC* outputtingProcPtr)
-        { OutputtingProcPtr = outputtingProcPtr; }
-
-    //used to call sOutputtingProcPtr automatically, enabling it on construction and disabling on destruction
-    class OutputtingProcPtrWrapperC {
-        BasicClientC& Client;
-    public:
-        inline OutputtingProcPtrWrapperC(BasicClientC& client, ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) :
-            Client(client) {
-            Client.sOutputtingProcPtr(&outProc);
-        }
-        inline ~OutputtingProcPtrWrapperC() { Client.sOutputtingProcPtr(nullptr); }
+    inline bool gIsConnected() const { std::lock_guard lg(ClientMutex); return ConnectedToServer; }
+    inline bool gIsConnecting() const { std::lock_guard lg(ClientMutex); return !gIsConnected() && Socket.is_open(); }
+    enum class ConnectResultE :unsigned char {
+        TimedOut, AccessDenied, AddressIsAlreadyOccupied, SocketAlreadyConnected,
+        ConnectionAbortedInMiddleWay, ServerIsNotListeningAtThisPort, ServerIsOffline,
+        SocketIsInProgressOfConnecting, NoEthernetConnection, NoRouteToServer,
+        AbortedByClient, UnknownError, NoErrors
     };
-    inline bool gIsConnected() const { return Socket.is_open(); }
-    void Connect(asio::ip::tcp::endpoint ep);
-    void Disconnect();
+    ConnectResultE Connect(asio::ip::tcp::endpoint ep);
+    enum class DisconnectResultE :unsigned char {
+        NotConnectedToAnything, UnknownError, NoErrors
+    };
+    DisconnectResultE Disconnect();
 protected:
-    inline virtual void OnConnect() {};
-    inline virtual void OnDisconnect() {};
+    inline virtual void OnConnect() { std::lock_guard lg(ClientMutex); ConnectedToServer = true; };
+    using DisconnectReasonE = NetworkEventsNS::EventTypeToClientS<NetworkEventsNS::EventsTypesToClientE::DisconnectedFromServer>::DisconnectReasonE;
+    inline virtual void OnDisconnect(DisconnectReasonE) { std::lock_guard lg(ClientMutex); ConnectedToServer = false; };
     //by default just prints out everything received
-    virtual void OnRead(size_t bytesRead);
-private:
-    void _Write(void const* arr, size_t lenInBytes);
+    virtual void OnRead(size_t bytesRead) {}
 public:
-    template<typename T> void Write(T const* arrPtr, size_t arrSize) { _Write(arrPtr, arrSize * sizeof(T)); }
-    template<typename T> void Write(T&& var) { Write(&var, 1); }
+    enum class WriteResultE :unsigned int {
+        NotConnectedToAnything, StoppedByClient, UnknownError, NoErrors,
+    };
+private:
+    WriteResultE _Write(void const* arr, size_t lenInBytes);
+public:
+    template<typename T> WriteResultE Write(T const* arrPtr, size_t arrSize) { std::lock_guard lg(ClientMutex); return _Write(arrPtr, arrSize * sizeof(T)); }
+    template<typename T> WriteResultE Write(T&& var) { std::lock_guard lg(ClientMutex); return Write(&var, 1); }
 };

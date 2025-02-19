@@ -17,7 +17,6 @@ namespace ConsoleCommandsNS {
         extern const size_t CommandsAmount;
         inline std::pair<std::string_view, void(*)(ConsoleManagerNS::OutputNS::OutputtingProcessC&)> Commands[] = {
             {"connect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) {
-                BasicClientC::OutputtingProcPtrWrapperC clientOutProcWrap(*DataForCommandsNS::Client, outProc);
                 size_t fs = CommandBuffer.find_first_of(' ');
                 size_t ss = CommandBuffer.find_first_of(' ', fs + 1);
                 if (fs == std::string::npos || ss == std::string::npos) {
@@ -31,15 +30,41 @@ namespace ConsoleCommandsNS {
                     asio::error_code ec;
                     auto ip = asio::ip::make_address(ipStr, ec);
                     if (ec) { outProc << "could not convert ip string to ip" << outProc.EndLine; return; }
-                    DataForCommandsNS::Client->Connect(asio::ip::tcp::endpoint(ip, port));
+
+                    auto err = DataForCommandsNS::Client->Connect(asio::ip::tcp::endpoint(ip, port));
+                    if (err != BasicClientC::ConnectResultE::NoErrors) {
+                        outProc << "Failed at connecting: ";
+                        switch (err) {
+                        case BasicClientC::ConnectResultE::TimedOut: outProc << "timed out"; break;
+                        case BasicClientC::ConnectResultE::AccessDenied: outProc << "access denied"; break;
+                        case BasicClientC::ConnectResultE::AddressIsAlreadyOccupied: outProc << "address is occupied"; break;
+                        case BasicClientC::ConnectResultE::SocketAlreadyConnected: outProc << "client is already connected"; break;
+                        case BasicClientC::ConnectResultE::ConnectionAbortedInMiddleWay: outProc << "connection aborted in middle way"; break;
+                        case BasicClientC::ConnectResultE::ServerIsNotListeningAtThisPort: outProc << "server is not listening at this port"; break;
+                        case BasicClientC::ConnectResultE::ServerIsOffline: outProc << "server is offline"; break;
+                        case BasicClientC::ConnectResultE::SocketIsInProgressOfConnecting: outProc << "socket is in progress of connecting"; break;
+                        case BasicClientC::ConnectResultE::NoEthernetConnection: outProc << "no ethernet connection"; break;
+                        case BasicClientC::ConnectResultE::NoRouteToServer: outProc << "no route to server"; break;
+                        case BasicClientC::ConnectResultE::AbortedByClient: outProc << "aborted by client"; break;
+                        case BasicClientC::ConnectResultE::UnknownError: outProc << "unknown error"; break;
+                        default: outProc << "uhandled unknown error"; break;
+                        }
+                        outProc << outProc.EndLine;
+                    }
                 }
                 catch (std::invalid_argument&) {
                     outProc << "could not convert port string to port" << outProc.EndLine; return;
                 }
             }},
             {"disconnect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) {
-                BasicClientC::OutputtingProcPtrWrapperC clientOutProcWrap(*DataForCommandsNS::Client, outProc);
-                DataForCommandsNS::Client->Disconnect();
+                auto err = DataForCommandsNS::Client->Disconnect();
+                if (err == BasicClientC::DisconnectResultE::NoErrors) return;
+                outProc << "Failed at disconnecting: ";
+                switch (err) {
+                case BasicClientC::DisconnectResultE::NotConnectedToAnything: outProc << "not connected to anything"; break;
+                case BasicClientC::DisconnectResultE::UnknownError: outProc << "unknown error"; break;
+                default: outProc << "unhandled unknown error"; break;
+                }
             }},
             {"login",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) {
                 size_t fs = CommandBuffer.find_first_of(' ');
@@ -51,8 +76,7 @@ namespace ConsoleCommandsNS {
                 }
                 std::string userStr = CommandBuffer.substr(fs + 1, ss - fs - 1);
                 std::string passStr = CommandBuffer.substr(ss + 1);
-                ChatClientC::LogInResultE res = DataForCommandsNS::Client->LogIn(userStr.data(), passStr.data());
-                switch (res) {
+                switch (DataForCommandsNS::Client->LogIn(userStr.data(), passStr.data())) {
                 case ChatClientC::LogInResultE::NoErrors: return;
                 case ChatClientC::LogInResultE::NotConnectedToServer:
                     outProc << "cant login when client is not connected to any server" << outProc.EndLine; return;

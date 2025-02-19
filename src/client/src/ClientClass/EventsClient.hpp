@@ -7,9 +7,21 @@ public:
     using BasicClientC::BasicClientC;
     virtual ~EventsClientC() override = default;
 private:
+    using BasicClientC::SocketBuffer;
     using BasicClientC::Write;
+    using BasicClientC::OnConnect;
+    using BasicClientC::OnDisconnect;
+    inline virtual void OnConnect() override final {
+        std::lock_guard lg(ClientMutex); OnEvent(NetworkEventsNS::EventsTypesToClientE::ConnectedToServer, {});
+        BasicClientC::OnConnect();
+    }
+    inline virtual void OnDisconnect(DisconnectReasonE reason) override final {
+        std::lock_guard lg(ClientMutex);
+        NetworkEventsNS::EventTypeToClientU ev; ev.DisconnectedFromServer = { reason };
+        OnEvent(NetworkEventsNS::EventsTypesToClientE::DisconnectedFromServer, ev);
+        BasicClientC::OnDisconnect(reason);
+    };
     struct{
-        //in this case END_OF_ENUM will be used to mark that no event is begin received at the moment
         NetworkEventsNS::EventsTypesToClientE Type;
         NetworkEventsNS::EventTypeToClientU Data;
         //variables to not check for every possible event type when trying to get its size

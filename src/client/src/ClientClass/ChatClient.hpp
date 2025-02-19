@@ -8,11 +8,6 @@ public:
 private:
     virtual void OnEvent(NetworkEventsNS::EventsTypesToClientE eventType, NetworkEventsNS::EventTypeToClientU const& eventData) override final;
 private:
-    virtual void OnConnect() override final;
-    virtual void OnDisconnect() override final;
-    std::recursive_mutex EventMutex;
-
-private:
     bool LoggedInUserInServer = false;
 public:
     inline bool gIsLoggedInUserInServer() const noexcept { return LoggedInUserInServer; }
