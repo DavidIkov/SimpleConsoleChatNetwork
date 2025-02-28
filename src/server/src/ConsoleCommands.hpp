@@ -17,10 +17,10 @@ namespace ConsoleCommandsNS {
         extern const size_t CommandsAmount;
         std::pair<std::string_view, void(*)(ConsoleManagerNS::OutputNS::OutputtingProcessC&)> Commands[] = {
             {"list clients",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc){
-                auto const& clients = DataForCommandsNS::Server->gClients();
-                for (auto client = ++clients.begin();client != clients.end();++client) {
-                    outProc << client->get()->Socket.remote_endpoint().address().to_string() << outProc.EndLine;
-                }
+                //auto const& clients = DataForCommandsNS::Server->gClients();
+                //for (auto client = ++clients.begin();client != clients.end();++client) {
+                //    outProc << client->get()->Socket.remote_endpoint().address().to_string() << outProc.EndLine;
+                //}
             }},
             {"exit",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&){
                 StopReading = true;

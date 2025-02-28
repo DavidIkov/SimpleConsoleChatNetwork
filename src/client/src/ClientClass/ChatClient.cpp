@@ -4,8 +4,15 @@
 
 using namespace NetworkEventsNS;
 
+ChatClientC::~ChatClientC() {
+    if (IsChatClientDestructorLast) Mutex.lock();
+}
+ChatClientC::ChatClientC(asio::io_context& context) :EventsClientC(context) {
+    IsEventsClientDestructorLast = false;
+    OutputMacro << "Client is running!" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+}
 void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU const& eventData) {
-    std::lock_guard lg(ClientMutex);
+    //todo add login event
     switch (eventType) {
     case EventsTypesToClientE::ConnectedToServer: {
         OutputMacro << "Connected to server" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
@@ -58,20 +65,22 @@ void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU con
 }
 
 auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResultE {
-    if (!gIsConnected()) return LogInResultE::NotConnectedToServer;
-    else if (gIsLoggedInUserInServer()) return LogInResultE::AlreadyLogged;
+    std::lock_guard lg(Mutex);
+    if (!_gIsConnected()) return LogInResultE::NotConnected;
+    else if (_gIsLoggedInUserInServer()) return LogInResultE::AlreadyLogged;
     else if (username.size() > NetworkEventsNS::ClientUsernameMaxLen) return LogInResultE::UsernameTooLong;
     else if (password.size() > NetworkEventsNS::ClientPasswordMaxLen) return LogInResultE::PasswordTooLong;
     NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::LogInUser> evData;
     std::memcpy(&evData.Username, username.data(), username.size() + 1);
     std::memcpy(&evData.Password, password.data(), password.size() + 1);
-    SendEvent(evData);
+    if (_SendEvent(evData) != SendEventResultE::NoErrors) return LogInResultE::FailedSendingEvent;
     return LogInResultE::NoErrors;
 }
 auto ChatClientC::LogOut()->LogOutResultE {
-    if (!gIsConnected()) return LogOutResultE::NotConnectedToServer;
-    else if (!gIsLoggedInUserInServer()) return LogOutResultE::NotLoggedIn;
+    std::lock_guard lg(Mutex);
+    if (!_gIsConnected()) return LogOutResultE::NotConnected;
+    else if (!_gIsLoggedInUserInServer()) return LogOutResultE::NotLoggedIn;
     LoggedInUserInServer = false;
-    SendEvent(NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::LogOutFromUser>{});
+    _SendEvent(NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::LogOutFromUser>{});
     return LogOutResultE::NoErrors;
 }

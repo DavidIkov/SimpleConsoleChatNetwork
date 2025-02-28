@@ -1,47 +1,41 @@
 #include"BasicServer.hpp"
 
-#define OutputMacro ((OutputtingProcPtr==nullptr)?ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC():*OutputtingProcPtr)
-
 void BasicServerC::_RemoveClient(BasicClientS& client) {
+    std::lock_guard lg(ServerMutex);
     for (size_t i = 0;i < Clients.size();i++) {
         if (&*Clients[i] == &client) { Clients.erase(Clients.begin() + i); return; }
     }
 }
 void BasicServerC::_StartReading(BasicClientS& client) {
+    std::lock_guard lg(ServerMutex);
     client.Socket.async_read_some(asio::buffer(client.ReadBuffer, sizeof(client.ReadBuffer)), [&](asio::error_code ec, size_t bytes) {
         if (ec) {
             if (ec == asio::error::eof) {
-                OutputMacro << "Client disconnected, stopping reading"
-                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                std::lock_guard lg(ServerMutex);
                 client.Socket.shutdown(client.Socket.shutdown_both);
                 client.Socket.close();
-                OnDisconnect(client);
+                OnDisconnect(client, DisconnectReasonE::ClientDisconnected);
                 _RemoveClient(client);
                 return;
             }
             else if (ec == asio::error::operation_aborted) {
-                OutputMacro << "Server forcefully closed socket, stopping reading"
-                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
                 //no need for shutdown and close and removing of socket since this code will happen only on shutdown, 
                 //so its done forcefully and i can rely on caller to do allat
                 return;
             }
             else if (ec == asio::error::connection_reset) {
-                OutputMacro << "Client reseted connection, stopping reading"
-                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                std::lock_guard lg(ServerMutex);
                 client.Socket.shutdown(client.Socket.shutdown_both);
                 client.Socket.close();
-                OnDisconnect(client);
+                OnDisconnect(client, DisconnectReasonE::ClientResetedConnection);
                 _RemoveClient(client);
                 return;
             }
             else {
-                OutputMacro << "Unhandled error occured in socket, stopping reading " <<
-                    ec.value() << ' ' << ec.message()
-                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                std::lock_guard lg(ServerMutex);
                 client.Socket.shutdown(client.Socket.shutdown_both);
                 client.Socket.close();
-                OnDisconnect(client);
+                OnDisconnect(client, DisconnectReasonE::UnknownError);
                 _RemoveClient(client);
                 return;
             }
@@ -51,25 +45,22 @@ void BasicServerC::_StartReading(BasicClientS& client) {
         });
 }
 BasicServerC::BasicClientS& BasicServerC::ClientFactory() {
+    std::lock_guard lg(ServerMutex);
     return *Clients.emplace(Clients.begin(), new BasicClientS(AsioContext.get()))->get();
 }
 void BasicServerC::StartAcceptingConnections() {
+    std::lock_guard lg(ServerMutex);
     BasicClientS& client = ClientFactory();
     ConnectionsAcceptor.async_accept(client.Socket, [&](asio::error_code ec) {
         if (ec) {
             if (ec == asio::error::operation_aborted) {
-                OutputMacro << "Server closed acceptor"
-                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                OnAcceptConnectionError(OnAcceptConnectionErrorE::ServerClosedAcceptor);
                 return;
             } else {
-                OutputMacro << "Unhandled error occured in acceptor" <<
-                    ec.value() << ' ' << ec.message()
-                    << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                OnAcceptConnectionError(OnAcceptConnectionErrorE::UnknownError);
                 return;
             }
         }
-        OutputMacro << "Connected! " << client.Socket.remote_endpoint().address().to_string()
-            << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
         OnConnect();
         _StartReading(client);
         StartAcceptingConnections();
@@ -77,37 +68,38 @@ void BasicServerC::StartAcceptingConnections() {
 
 }
 BasicServerC::BasicServerC(asio::io_context& asioContext, asio::ip::port_type port) :
-    AsioContext(asioContext), ConnectionsAcceptor(asioContext, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {
-    OutputMacro << "Server is up"
-        << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
-}
+    AsioContext(asioContext), ConnectionsAcceptor(asioContext, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
 BasicServerC::~BasicServerC() {
+    std::lock_guard lg(ServerMutex);
     Shutdown();
 }
-void BasicServerC::_WriteToClient(BasicClientS& client, void const* arr, size_t lenInBytes) {
+auto BasicServerC::_WriteToClient(BasicClientS& client, void const* arr, size_t lenInBytes) -> WriteToClientResultE {
+    std::lock_guard lg(ServerMutex);
+    if (!client.gIsActive()) return WriteToClientResultE::ClientIsNotActive;
     if (lenInBytes != 0) {
         size_t bytesOffset = 0;
         asio::error_code ec;
         while ((bytesOffset +=
             client.Socket.write_some(asio::buffer((char*)arr + bytesOffset, lenInBytes - bytesOffset), ec)) != lenInBytes)
             if (ec) {
-                if (ec == asio::error::operation_aborted) OutputMacro << "Canceled writing to socket" <<
-                    ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
-                else OutputMacro << "Unhandled error occured while writing to socket" <<
-                    ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                if (ec == asio::error::operation_aborted) return WriteToClientResultE::StoppedByServer;
+                else return WriteToClientResultE::UknownError;
             }
     }
+    return WriteToClientResultE::NoErrors;
 }
 void BasicServerC::Shutdown() {
+    std::lock_guard lg(ServerMutex);
     if (ConnectionsAcceptor.is_open()) {
         ConnectionsAcceptor.close();
         for (auto& client : Clients)
-            if (client.get()->Socket.is_open()) {
-                OnDisconnect(*client.get());
-                client.get()->Socket.shutdown(client.get()->Socket.shutdown_both);
-                client.get()->Socket.close();
+            if (client.get()->gIsActive()) {
+                OnDisconnect(*client.get(), DisconnectReasonE::ServerDisconnected);
+                asio::error_code ec;
+                //todo do some error handling here
+                client.get()->Socket.shutdown(client.get()->Socket.shutdown_both, ec);
+                client.get()->Socket.close(ec);
             }
         Clients.clear();
-        OutputMacro << "Server shutdown" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
     }
 }

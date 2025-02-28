@@ -1,6 +1,9 @@
 #include"EventsClient.hpp"
 #include<algorithm>
 
+EventsClientC::~EventsClientC() {
+    if (IsEventsClientDestructorLast) Mutex.lock();
+}
 void EventsClientC::_OnReadWithOffset(size_t bytesLeft, char* start) {
     if (bytesLeft == 0) return;
     if (CurEvent.BytesReaded < sizeof(CurEvent.Type)) {

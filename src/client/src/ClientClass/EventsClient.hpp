@@ -2,24 +2,31 @@
 #include"BasicClient.hpp"
 #include"NetworkEvents.hpp"
 //client that is working with events from NetworkEvents.hpp
-class EventsClientC :virtual public BasicClientC {
+class EventsClientC :public BasicClientC {
 public:
+    inline EventsClientC(asio::io_context& context):BasicClientC(context){
+        IsBasicClientDestructorLast = false;
+    }
     using BasicClientC::BasicClientC;
-    virtual ~EventsClientC() override = default;
+protected:
+    bool IsEventsClientDestructorLast = true;
+public:
+    virtual ~EventsClientC() override;
 private:
     using BasicClientC::SocketBuffer;
     using BasicClientC::Write;
+    using BasicClientC::WriteResultE;
     using BasicClientC::OnConnect;
     using BasicClientC::OnDisconnect;
+    using BasicClientC::IsBasicClientDestructorLast;
     inline virtual void OnConnect() override final {
-        std::lock_guard lg(ClientMutex); OnEvent(NetworkEventsNS::EventsTypesToClientE::ConnectedToServer, {});
         BasicClientC::OnConnect();
+        OnEvent(NetworkEventsNS::EventsTypesToClientE::ConnectedToServer, {});
     }
     inline virtual void OnDisconnect(DisconnectReasonE reason) override final {
-        std::lock_guard lg(ClientMutex);
+        BasicClientC::OnDisconnect(reason);
         NetworkEventsNS::EventTypeToClientU ev; ev.DisconnectedFromServer = { reason };
         OnEvent(NetworkEventsNS::EventsTypesToClientE::DisconnectedFromServer, ev);
-        BasicClientC::OnDisconnect(reason);
     };
     struct{
         NetworkEventsNS::EventsTypesToClientE Type;
@@ -32,9 +39,18 @@ private:
 protected:
     inline virtual void OnEvent(NetworkEventsNS::EventsTypesToClientE eventType, NetworkEventsNS::EventTypeToClientU const& eventData) {};
 public:
+    using SendEventResultE = WriteResultE;
+protected:
     template<NetworkEventsNS::EventsTypesToServerE EventTypeEnum>
-    void SendEvent(const NetworkEventsNS::EventTypeToServerS<EventTypeEnum>& eventData) {
-        Write(EventTypeEnum);
-        Write(eventData);
+    SendEventResultE _SendEvent(const NetworkEventsNS::EventTypeToServerS<EventTypeEnum>& eventData) {
+        WriteResultE res = _Write(EventTypeEnum);
+        if (res != WriteResultE::NoErrors) return res;
+        return _Write(eventData);
+    }
+public:
+    template<NetworkEventsNS::EventsTypesToServerE EventTypeEnum>
+    SendEventResultE SendEvent(const NetworkEventsNS::EventTypeToServerS<EventTypeEnum>& eventData) {
+        std::lock_guard lg(Mutex);
+        return _SendEvent(eventData);
     }
 };

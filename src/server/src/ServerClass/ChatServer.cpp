@@ -1,6 +1,6 @@
 #include"ChatServer.hpp"
 
-#define OutputMacro ((OutputtingProcPtr==nullptr)?ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC():*OutputtingProcPtr)
+#define OutputMacro ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC()
 #define ChatClientConv(client) dynamic_cast<ChatClientS&>(client)
 
 using namespace NetworkEventsNS;
@@ -12,26 +12,56 @@ struct RegisteredUserS {
 };
 static std::vector<RegisteredUserS> RegisteredUsers;
 
+ChatServerC::ChatServerC(asio::io_context& asioContext, asio::ip::port_type port) :EventsServerC(asioContext, port) {
+    OutputMacro << "Server is running!" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+}
 ChatServerC::BasicClientS& ChatServerC::ClientFactory() {
+    std::lock_guard lg(ServerMutex);
     return *Clients.emplace(Clients.begin(), new ChatClientS(AsioContext.get()))->get();
 }
-#include<iostream>
+void ChatServerC::OnAcceptConnectionError(OnAcceptConnectionErrorE err) {
+    switch (err) {
+    case OnAcceptConnectionErrorE::ServerClosedAcceptor: return;
+    case OnAcceptConnectionErrorE::UnknownError:
+        OutputMacro << "uknown error occured while trying to accept connection"
+            << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+        return;
+    default:
+        OutputMacro << "unhandled error occured while trying to accept connection"
+            << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+        return;
+    }
+}
 void ChatServerC::OnEvent(BasicClientS& client, EventsTypesToServerE eventType, EventTypeToServerU const& eventData) {
     ChatClientS& chatClient = ChatClientConv(client);
-    std::lock_guard lg(chatClient.EventMutex);
+    std::lock_guard lg(ServerMutex);
     switch(eventType){
     case EventsTypesToServerE::ClientConnected: {
-        OutputMacro << "client joined from " << chatClient.Socket.remote_endpoint().address().to_string()
-            << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+        OutputMacro << "client joined from " << chatClient.Socket.remote_endpoint().address().to_string() << ':' <<
+            std::to_string(chatClient.Socket.remote_endpoint().port()) << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
         break;
     }
     case EventsTypesToServerE::ClientDisconnected: {
         if (chatClient.Registered)
             OnEvent(client, EventsTypesToServerE::LogOutFromUser, {});
-        OutputMacro << "client disconnected" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+        auto& data = eventData.ClientDisconnected;
+        auto out = OutputMacro;
+        out << "client ";
+        if (data.Reason == decltype(eventData.ClientDisconnected)::DisconnectReasonE::ClientDisconnected)
+            out << "disconnected";
+        else if (data.Reason == decltype(eventData.ClientDisconnected)::DisconnectReasonE::ClientResetedConnection)
+            out << "reseted connection";
+        else if (data.Reason == decltype(eventData.ClientDisconnected)::DisconnectReasonE::ServerDisconnected)
+            out << "got disconnected by server";
+        else if (data.Reason == decltype(eventData.ClientDisconnected)::DisconnectReasonE::ServerShutdown)
+            out << "got disconnected since server is shutting down";
+        else if (data.Reason == decltype(eventData.ClientDisconnected)::DisconnectReasonE::UnknownError)
+            out << "got disconnected becouse of unknown error";
+        out<< ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
         break;
     }
     case EventsTypesToServerE::LogInUser: { 
+        OutputMacro << "WHAT";
         if(!chatClient.Registered) {
             auto& respData = eventData.LoginRequestRespond;
             bool foundUser = false;
@@ -68,10 +98,10 @@ void ChatServerC::OnEvent(BasicClientS& client, EventsTypesToServerE eventType, 
                 RegisteredUsers.emplace_back();
                 std::memcpy(&RegisteredUsers.rbegin()->Username, respData.Username, ClientUsernameMaxLen);
                 std::memcpy(&RegisteredUsers.rbegin()->Password, respData.Password, ClientPasswordMaxLen);
-                SendEvent(client, EventTypeToClientS<EventsTypesToClientE::LogInResult>{
-                    EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::LoggedAsNewUser});
                 OutputMacro << "client registered as new user \"" << respData.Username << "\""
                     << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+                SendEvent(client, EventTypeToClientS<EventsTypesToClientE::LogInResult>{
+                    EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::LoggedAsNewUser});
             }
         }
         break;

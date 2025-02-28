@@ -11,44 +11,79 @@ class BasicClientC {
 private:
     std::reference_wrapper<asio::io_context> Context;
     asio::ip::tcp::socket Socket;
+
 protected:
     char SocketBuffer[64];
 private:
     void _StartReading_Async();
 protected:
-    mutable std::recursive_mutex ClientMutex;
+    mutable std::mutex Mutex;
+    std::condition_variable CV;
 private:
     bool ConnectedToServer = false;
+    struct {
+        bool Active = false;
+        bool ErrorHappened = false;
+        bool ServerResponded = false;
+    } DisconnectEvent;
+    inline bool _gIsDisconnecting() const { return DisconnectEvent.Active; }
 public:
     BasicClientC(asio::io_context& context);
-    virtual ~BasicClientC() = default;
-
-    inline bool gIsConnected() const { std::lock_guard lg(ClientMutex); return ConnectedToServer; }
-    inline bool gIsConnecting() const { std::lock_guard lg(ClientMutex); return !gIsConnected() && Socket.is_open(); }
+protected:
+    std::shared_ptr<bool> DestructingInstance;//false
+    bool IsBasicClientDestructorLast = true;
+public:
+    virtual ~BasicClientC();
+protected:
+    inline bool _gIsConnected() const { return ConnectedToServer; }
+    inline bool _gIsConnecting() const { return !_gIsConnected() && Socket.is_open(); }
+public:
+    //be aware that this function returns false even if client is still connected to server
+    //but doing "gracefull" disconnect
+    inline bool gIsConnected() const { std::lock_guard lg(Mutex); return _gIsConnected(); }
+    inline bool gIsConnecting() const { std::lock_guard lg(Mutex); return _gIsConnecting(); }
     enum class ConnectResultE :unsigned char {
         TimedOut, AccessDenied, AddressIsAlreadyOccupied, SocketAlreadyConnected,
         ConnectionAbortedInMiddleWay, ServerIsNotListeningAtThisPort, ServerIsOffline,
         SocketIsInProgressOfConnecting, NoEthernetConnection, NoRouteToServer,
-        AbortedByClient, UnknownError, NoErrors
+        AbortedByClient, SocketIsInternallyDisconnecting, UnknownError, NoErrors
     };
     ConnectResultE Connect(asio::ip::tcp::endpoint ep);
     enum class DisconnectResultE :unsigned char {
-        NotConnectedToAnything, UnknownError, NoErrors
+        NotConnectedToAnything, AlreadyDisconnecting, OperationAborted,
+        UnknownErrorOnSocketClosureButSuccessfullDisconnect, UnknownError, NoErrors
     };
-    DisconnectResultE Disconnect();
+private:
+    DisconnectResultE _Disconnect(bool gracefull);
+public:
+    //gracefull disconnect includes that function will block calling thread until full disconnection
+    //process is finished(aka gracefull disconnect)
+    DisconnectResultE Disconnect(bool gracefull = true) {
+        std::unique_lock ul(Mutex);
+        std::shared_ptr<bool> destructingInst = DestructingInstance;
+        DisconnectResultE res = _Disconnect(gracefull);
+        if (*destructingInst) ul.release();
+        return res;
+    }
 protected:
-    inline virtual void OnConnect() { std::lock_guard lg(ClientMutex); ConnectedToServer = true; };
+    inline virtual void OnConnect() { ConnectedToServer = true; };
     using DisconnectReasonE = NetworkEventsNS::EventTypeToClientS<NetworkEventsNS::EventsTypesToClientE::DisconnectedFromServer>::DisconnectReasonE;
-    inline virtual void OnDisconnect(DisconnectReasonE) { std::lock_guard lg(ClientMutex); ConnectedToServer = false; };
-    //by default just prints out everything received
+    //to make things clear this event fires when Disconnect function is called, so it is not waiting for internal disconnection
+    inline virtual void OnDisconnect(DisconnectReasonE) { ConnectedToServer = false; };
     virtual void OnRead(size_t bytesRead) {}
 public:
     enum class WriteResultE :unsigned int {
         NotConnectedToAnything, StoppedByClient, UnknownError, NoErrors,
     };
 private:
-    WriteResultE _Write(void const* arr, size_t lenInBytes);
+    WriteResultE __Write(void const* arr, size_t lenInBytes);
+protected:
+    template<typename T> WriteResultE _Write(T const* arrPtr, size_t arrSize) { return __Write(arrPtr, arrSize * sizeof(T)); }
+    template<typename T> WriteResultE _Write(T&& var) { return _Write(&var, 1); }
 public:
-    template<typename T> WriteResultE Write(T const* arrPtr, size_t arrSize) { std::lock_guard lg(ClientMutex); return _Write(arrPtr, arrSize * sizeof(T)); }
-    template<typename T> WriteResultE Write(T&& var) { std::lock_guard lg(ClientMutex); return Write(&var, 1); }
+    template<typename T> WriteResultE Write(T const* arrPtr, size_t arrSize) {
+        std::lock_guard lg(ProcessMutex);
+        return _Write(arrPtr, arrSize);
+    }
+    template<typename T> WriteResultE Write(T&& var) { return Write(&var, 1); }
 };

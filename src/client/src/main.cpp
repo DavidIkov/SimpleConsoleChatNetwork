@@ -22,8 +22,6 @@ int main(int argc, char** argv) {
 
     ConsoleCommandsNS::DataForCommandsNS::Client = &Client;
 
-    ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC() << "Client is running!" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
-
     std::thread th = ConsoleCommandsNS::InitializeConsoleReadingThread();
 
     th.join();

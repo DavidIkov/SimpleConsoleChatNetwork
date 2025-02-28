@@ -61,7 +61,11 @@ namespace NetworkEventsNS {
     END_OF_ENUM};
     template<EventsTypesToServerE> struct EventTypeToServerS { static_assert(false, "this event is not specialized"); };
     template<> struct EventTypeToServerS<EventsTypesToServerE::ClientConnected> {};
-    template<> struct EventTypeToServerS<EventsTypesToServerE::ClientDisconnected> {};
+    template<> struct EventTypeToServerS<EventsTypesToServerE::ClientDisconnected> {
+        enum class DisconnectReasonE :unsigned char {
+            ServerShutdown, ServerDisconnected, ClientDisconnected, ClientResetedConnection, UnknownError,
+        } Reason;
+    };
     template<> struct EventTypeToServerS<EventsTypesToServerE::LogInUser> {
         char Username[ClientUsernameMaxLen];
         char Password[ClientPasswordMaxLen];

@@ -59,10 +59,15 @@ namespace ConsoleCommandsNS {
             {"disconnect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) {
                 auto err = DataForCommandsNS::Client->Disconnect();
                 if (err == BasicClientC::DisconnectResultE::NoErrors) return;
+                if (err == BasicClientC::DisconnectResultE::UnknownErrorOnSocketClosureButSuccessfullDisconnect){
+                    outProc << "Disconnected with unknown error on socket closure";
+                    return;
+                }
                 outProc << "Failed at disconnecting: ";
                 switch (err) {
                 case BasicClientC::DisconnectResultE::NotConnectedToAnything: outProc << "not connected to anything"; break;
                 case BasicClientC::DisconnectResultE::UnknownError: outProc << "unknown error"; break;
+                case BasicClientC::DisconnectResultE::OperationAborted: outProc << "operation aborted"; break;
                 default: outProc << "unhandled unknown error"; break;
                 }
             }},
@@ -78,10 +83,12 @@ namespace ConsoleCommandsNS {
                 std::string passStr = CommandBuffer.substr(ss + 1);
                 switch (DataForCommandsNS::Client->LogIn(userStr.data(), passStr.data())) {
                 case ChatClientC::LogInResultE::NoErrors: return;
-                case ChatClientC::LogInResultE::NotConnectedToServer:
+                case ChatClientC::LogInResultE::NotConnected:
                     outProc << "cant login when client is not connected to any server" << outProc.EndLine; return;
                 case ChatClientC::LogInResultE::AlreadyLogged:
                     outProc << "cant login since client is already registered in server" << outProc.EndLine; return;
+                case ChatClientC::LogInResultE::FailedSendingEvent:
+                    outProc << "failed sending login event" << outProc.EndLine; return;
                 case ChatClientC::LogInResultE::UsernameTooLong:
                     outProc << "username is too long, max length is " << NetworkEventsNS::ClientUsernameMaxLen << outProc.EndLine; return;
                 case ChatClientC::LogInResultE::PasswordTooLong:
@@ -93,7 +100,7 @@ namespace ConsoleCommandsNS {
                 ChatClientC::LogOutResultE res = DataForCommandsNS::Client->LogOut();
                 switch (res) {
                 case ChatClientC::LogOutResultE::NoErrors: return;
-                case ChatClientC::LogOutResultE::NotConnectedToServer:
+                case ChatClientC::LogOutResultE::NotConnected:
                     outProc << "client is not connected to any server" << outProc.EndLine; return;
                 case ChatClientC::LogOutResultE::NotLoggedIn:
                     outProc << "client is not registered as any user" << outProc.EndLine; return;
