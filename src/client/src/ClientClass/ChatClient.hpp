@@ -17,15 +17,17 @@ private:
     virtual void OnEvent(NetworkEventsNS::EventsTypesToClientE eventType, NetworkEventsNS::EventTypeToClientU const& eventData) override final;
 private:
     struct {
-        bool Happening = false, ServerResponded = false;
-    } LoggingInUserInServerEvent;
-    bool LoggedInUserInServer = false;
+        bool Active = false, ServerResponded = false, Stopped = false;
+        NetworkEventsNS::EventTypeToClientS<NetworkEventsNS::EventsTypesToClientE::LogInResult>::RespTypeE ResponseType;
+    } LoggingInUserEvent;
+    bool LoggedInUser = false;
 protected:
-    inline bool _gIsLoggedInUserInServer() const noexcept { return LoggedInUserInServer; }
+    inline bool _gIsLoggedInUser() const noexcept { return LoggedInUser; }
 public:
-    inline bool gIsLoggedInUserInServer() const noexcept { std::lock_guard lg(Mutex); return _gIsLoggedInUserInServer(); }
+    inline bool gIsLoggedInUser() const noexcept { std::lock_guard lg(Mutex); return _gIsLoggedInUser(); }
     enum class LogInResultE :unsigned char {
-        NoErrors, NotConnected, FailedSendingEvent, AlreadyLogged, UsernameTooLong, PasswordTooLong
+        NotConnected, FailedSendingEvent, OperationAborted, AlreadyLogged, UsernameTooLong, PasswordTooLong,
+        Banned, WrongPassword, LoggedAsNewUser, LoggedAsExistingUser, UnknownRespond
     };
     inline LogInResultE LogIn(char const* username, char const* password) { return LogIn(std::string(username), std::string(password)); }
     LogInResultE LogIn(std::string username, std::string password);

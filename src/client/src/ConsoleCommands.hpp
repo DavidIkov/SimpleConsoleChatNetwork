@@ -82,7 +82,6 @@ namespace ConsoleCommandsNS {
                 std::string userStr = CommandBuffer.substr(fs + 1, ss - fs - 1);
                 std::string passStr = CommandBuffer.substr(ss + 1);
                 switch (DataForCommandsNS::Client->LogIn(userStr.data(), passStr.data())) {
-                case ChatClientC::LogInResultE::NoErrors: return;
                 case ChatClientC::LogInResultE::NotConnected:
                     outProc << "cant login when client is not connected to any server" << outProc.EndLine; return;
                 case ChatClientC::LogInResultE::AlreadyLogged:
@@ -93,6 +92,16 @@ namespace ConsoleCommandsNS {
                     outProc << "username is too long, max length is " << NetworkEventsNS::ClientUsernameMaxLen << outProc.EndLine; return;
                 case ChatClientC::LogInResultE::PasswordTooLong:
                     outProc << "password is too long, max length is " << NetworkEventsNS::ClientPasswordMaxLen << outProc.EndLine; return;
+                case ChatClientC::LogInResultE::Banned:
+                    outProc<<"cant login since this user is banned"<<outProc.EndLine; return;
+                case ChatClientC::LogInResultE::LoggedAsExistingUser:
+                        outProc<<"logged as existing user"<<outProc.EndLine; return;
+                case ChatClientC::LogInResultE::LoggedAsNewUser:
+                    outProc << "logged as new user" << outProc.EndLine; return;
+                case ChatClientC::LogInResultE::WrongPassword:
+                    outProc << "failed to login, wrong password" << outProc.EndLine; return;
+                case ChatClientC::LogInResultE::UnknownRespond:
+                    outProc << "failed to login becouse server made unknown response" << outProc.EndLine; return;
                 default: outProc << "unhandled error" << outProc.EndLine; return;
                 }
             }},

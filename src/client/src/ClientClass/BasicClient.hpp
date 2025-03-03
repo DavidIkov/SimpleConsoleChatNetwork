@@ -23,14 +23,13 @@ private:
     bool ConnectedToServer = false;
     struct {
         bool Active = false;
-        bool ErrorHappened = false;
-        bool ServerResponded = false;
+        bool ErrorHappened = false, ServerResponded = false, Stopped = false;
     } DisconnectEvent;
     inline bool _gIsDisconnecting() const { return DisconnectEvent.Active; }
 public:
     BasicClientC(asio::io_context& context);
 protected:
-    std::shared_ptr<bool> DestructingInstance;//false
+    std::shared_ptr<bool> InstanceIsDestructing;//false
     bool IsBasicClientDestructorLast = true;
 public:
     virtual ~BasicClientC();
@@ -60,7 +59,7 @@ public:
     //process is finished(aka gracefull disconnect)
     DisconnectResultE Disconnect(bool gracefull = true) {
         std::unique_lock ul(Mutex);
-        std::shared_ptr<bool> destructingInst = DestructingInstance;
+        std::shared_ptr<bool> destructingInst = InstanceIsDestructing;
         DisconnectResultE res = _Disconnect(gracefull);
         if (*destructingInst) ul.release();
         return res;

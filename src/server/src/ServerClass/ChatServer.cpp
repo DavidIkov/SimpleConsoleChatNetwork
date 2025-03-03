@@ -60,8 +60,7 @@ void ChatServerC::OnEvent(BasicClientS& client, EventsTypesToServerE eventType, 
         out<< ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
         break;
     }
-    case EventsTypesToServerE::LogInUser: { 
-        OutputMacro << "WHAT";
+    case EventsTypesToServerE::LogInUser: {
         if(!chatClient.Registered) {
             auto& respData = eventData.LoginRequestRespond;
             bool foundUser = false;
