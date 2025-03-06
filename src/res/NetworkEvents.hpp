@@ -9,18 +9,15 @@ namespace NetworkEventsNS {
 
     using EventsEnumType = unsigned char;
 
+    enum class DisconnectReasonE :unsigned char {
+        ServerDisconnected, ClientClosedSocket, ClientDisconnected, ServerResetedConnection, Unknown
+    };
+
     enum class EventsTypesToClientE :EventsEnumType {
-        ConnectedToServer, DisconnectedFromServer,
         UserConnected, UserDisconnected,
         LogInResult,
     END_OF_ENUM};
     template<EventsTypesToClientE> struct EventTypeToClientS { static_assert(false, "this event is not specialized"); };
-    template<> struct EventTypeToClientS<EventsTypesToClientE::ConnectedToServer> {};
-    template<> struct EventTypeToClientS<EventsTypesToClientE::DisconnectedFromServer> {
-        enum class DisconnectReasonE :unsigned char {
-            ServerDisconnected, ClientClosedSocket, ClientDisconnected, ServerResetedConnection, Unknown
-        } Reason;
-    };
     template<> struct EventTypeToClientS<EventsTypesToClientE::UserConnected> {
         char Username[ClientUsernameMaxLen + 1];
     };
@@ -34,16 +31,12 @@ namespace NetworkEventsNS {
     };
 
     union EventTypeToClientU {
-        EventTypeToClientS<EventsTypesToClientE::ConnectedToServer> ConnectedToServer;
-        EventTypeToClientS<EventsTypesToClientE::DisconnectedFromServer> DisconnectedFromServer;
         EventTypeToClientS<EventsTypesToClientE::UserConnected> UserConnected;
         EventTypeToClientS<EventsTypesToClientE::UserDisconnected> UserDisconnected;
         EventTypeToClientS<EventsTypesToClientE::LogInResult> LogInResult;
     };
 #define EventsTypesToClientSwitchCaseMacro(eventEnum)\
     switch(eventEnum){\
-    case NetworkEventsNS::EventsTypesToClientE::ConnectedToServer: { SwitchCaseTempMacro(NetworkEventsNS::EventTypeToClientS<NetworkEventsNS::EventsTypesToClientE::ConnectedToServer>); break; }\
-    case NetworkEventsNS::EventsTypesToClientE::DisconnectedFromServer: { SwitchCaseTempMacro(NetworkEventsNS::EventTypeToClientS<NetworkEventsNS::EventsTypesToClientE::DisconnectedFromServer>); break; }\
     case NetworkEventsNS::EventsTypesToClientE::UserConnected: { SwitchCaseTempMacro(NetworkEventsNS::EventTypeToClientS<NetworkEventsNS::EventsTypesToClientE::UserConnected>); break; }\
     case NetworkEventsNS::EventsTypesToClientE::UserDisconnected: { SwitchCaseTempMacro(NetworkEventsNS::EventTypeToClientS<NetworkEventsNS::EventsTypesToClientE::UserDisconnected>); break; }\
     case NetworkEventsNS::EventsTypesToClientE::LogInResult: { SwitchCaseTempMacro(NetworkEventsNS::EventTypeToClientS<NetworkEventsNS::EventsTypesToClientE::LogInResult>); break; }\

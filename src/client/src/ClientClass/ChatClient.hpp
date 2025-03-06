@@ -6,6 +6,8 @@ private:
     using EventsClientC::IsEventsClientDestructorLast;
     using EventsClientC::OnEvent;
     using EventsClientC::SendEvent;
+    virtual void OnConnect() override;
+    virtual void OnDisconnect(DisconnectReasonE) override;
 public:
     ChatClientC(asio::io_context& context);
     using EventsClientC::EventsClientC;
@@ -24,18 +26,15 @@ private:
 protected:
     inline bool _gIsLoggedInUser() const noexcept { return LoggedInUser; }
 public:
-    inline bool gIsLoggedInUser() const noexcept { std::lock_guard lg(Mutex); return _gIsLoggedInUser(); }
+    inline bool gIsLoggedInUser() const noexcept { ThreadLockC TL(this); return TL && _gIsLoggedInUser(); }
     enum class LogInResultE :unsigned char {
-        NotConnected, FailedSendingEvent, OperationAborted, AlreadyLogged, UsernameTooLong, PasswordTooLong,
+        NotConnected, FailedSendingEvent, Canceled, AlreadyLogged, UsernameTooLong, PasswordTooLong,
         Banned, WrongPassword, LoggedAsNewUser, LoggedAsExistingUser, UnknownRespond
     };
     inline LogInResultE LogIn(char const* username, char const* password) { return LogIn(std::string(username), std::string(password)); }
     LogInResultE LogIn(std::string username, std::string password);
     enum class LogOutResultE :unsigned char {
-        NoErrors, NotConnected, NotLoggedIn
+        Canceled, NoErrors, NotConnected, NotLoggedIn, UnknownError
     };
     LogOutResultE LogOut();
-
-
-private:
 };

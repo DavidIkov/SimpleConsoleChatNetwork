@@ -5,28 +5,30 @@
 using namespace NetworkEventsNS;
 
 ChatClientC::~ChatClientC() {
-    if (IsChatClientDestructorLast) Mutex.lock();
+    if (IsChatClientDestructorLast) ThreadSafety.Data->Mutex.lock();
 }
 ChatClientC::ChatClientC(asio::io_context& context) :EventsClientC(context) {
     IsEventsClientDestructorLast = false;
     OutputMacro << "Client is running!" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
 }
+void ChatClientC::OnConnect() {
+    BasicClientC::OnConnect();
+    OutputMacro << "Connected to server" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+}
+void ChatClientC::OnDisconnect(DisconnectReasonE reason) {
+    BasicClientC::OnDisconnect(reason);
+    //todo handle reasons of disconnect
+    LoggedInUser = false;
+    if (LoggingInUserEvent.Active) {
+        LoggingInUserEvent.Stopped = true;
+        ThreadSafety.Data->CV.notify_all();
+    }
+    OutputMacro << "Disconnected from server" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
+}
+
 void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU const& eventData) {
+    EventsClientC::OnEvent(eventType, eventData);
     switch (eventType) {
-    case EventsTypesToClientE::ConnectedToServer: {
-        OutputMacro << "Connected to server" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
-        break;
-    }
-    case EventsTypesToClientE::DisconnectedFromServer: {
-        //todo handle reasons of disconnect
-        LoggedInUser = false;
-        if (LoggingInUserEvent.Active) {
-            LoggingInUserEvent.Stopped = true;
-            CV.notify_all();
-        }
-        OutputMacro << "Disconnected from server" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
-        break;
-    }
     case EventsTypesToClientE::UserConnected: {
         break;
     }
@@ -37,9 +39,11 @@ void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU con
         if (eventData.LogInResult.RespType == EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::LoggedAsExistingUser ||
             eventData.LogInResult.RespType == EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::LoggedAsNewUser)
             LoggedInUser = true;
-        LoggingInUserEvent.ServerResponded = true;
-        LoggingInUserEvent.ResponseType = eventData.LogInResult.RespType;
-        CV.notify_all();
+        if (LoggingInUserEvent.Active) {
+            LoggingInUserEvent.ServerResponded = true;
+            LoggingInUserEvent.ResponseType = eventData.LogInResult.RespType;
+            ThreadSafety.Data->CV.notify_all();
+        }
         break;
     }
     default: {
@@ -50,7 +54,8 @@ void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU con
 }
 
 auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResultE {
-    std::unique_lock ul(Mutex);
+    ThreadLockC TL(this);
+    if (!TL) return LogInResultE::Canceled;
     if (!_gIsConnected()) return LogInResultE::NotConnected;
     else if (_gIsLoggedInUser()) return LogInResultE::AlreadyLogged;
     else if (username.size() > NetworkEventsNS::ClientUsernameMaxLen) return LogInResultE::UsernameTooLong;
@@ -61,15 +66,14 @@ auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResu
 
     LoggingInUserEvent.Active = true;
     LoggingInUserEvent.ServerResponded = false, LoggingInUserEvent.Stopped = false;
-    std::shared_ptr<bool> isDestructing = InstanceIsDestructing;
     std::thread waitingTh([&] {
-        CV.wait(ul, [&]()->bool {return *isDestructing || LoggingInUserEvent.Stopped || LoggingInUserEvent.ServerResponded;});
+        TL.Wait([&]()->bool {return !TL || LoggingInUserEvent.Stopped || LoggingInUserEvent.ServerResponded;});
         });
     if (_SendEvent(evData) != SendEventResultE::NoErrors) return LogInResultE::FailedSendingEvent;
     waitingTh.join();
-    if (*isDestructing) { ul.release(); return LogInResultE::OperationAborted; }
+    if (!TL) return LogInResultE::Canceled;
     LoggingInUserEvent.Active = false;
-    if (LoggingInUserEvent.Stopped) return LogInResultE::OperationAborted;
+    if (LoggingInUserEvent.Stopped) return LogInResultE::Canceled;
     switch(LoggingInUserEvent.ResponseType){
     case(decltype(LoggingInUserEvent.ResponseType)::Banned): return LogInResultE::Banned;
     case(decltype(LoggingInUserEvent.ResponseType)::LoggedAsExistingUser): return LogInResultE::LoggedAsExistingUser;
@@ -79,10 +83,13 @@ auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResu
     }
 }
 auto ChatClientC::LogOut()->LogOutResultE {
-    std::lock_guard lg(Mutex);
+    ThreadLockC TL(this);
+    if (!TL) return LogOutResultE::Canceled;
     if (!_gIsConnected()) return LogOutResultE::NotConnected;
     else if (!_gIsLoggedInUser()) return LogOutResultE::NotLoggedIn;
     LoggedInUser = false;
-    _SendEvent(NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::LogOutFromUser>{});
+    SendEventResultE res = _SendEvent(NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::LogOutFromUser>{});
+    if (res == SendEventResultE::Canceled) return LogOutResultE::Canceled;
+    else if (res == SendEventResultE::UnknownError) return LogOutResultE::UnknownError;
     return LogOutResultE::NoErrors;
 }

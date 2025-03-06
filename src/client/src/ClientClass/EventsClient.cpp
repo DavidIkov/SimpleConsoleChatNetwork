@@ -2,9 +2,9 @@
 #include<algorithm>
 
 EventsClientC::~EventsClientC() {
-    if (IsEventsClientDestructorLast) Mutex.lock();
+    if (IsEventsClientDestructorLast) ThreadSafety.Data->Mutex.lock();
 }
-void EventsClientC::_OnReadWithOffset(size_t bytesLeft, char* start) {
+void EventsClientC::_OnReadWithOffset(char const* start, size_t bytesLeft) {
     if (bytesLeft == 0) return;
     if (CurEvent.BytesReaded < sizeof(CurEvent.Type)) {
         //header of event is not fully read
@@ -16,7 +16,7 @@ void EventsClientC::_OnReadWithOffset(size_t bytesLeft, char* start) {
             EventsTypesToClientSwitchCaseMacro(CurEvent.Type)
 #undef SwitchCaseTempMacro
         }
-        _OnReadWithOffset(bytesLeft - headerBytesLeft, start + headerBytesLeft);
+        _OnReadWithOffset(start + headerBytesLeft, bytesLeft - headerBytesLeft);
     }
     else {
         size_t dataBytesLeft = std::min(CurEvent.BytesLeftToRead, bytesLeft);
@@ -26,6 +26,6 @@ void EventsClientC::_OnReadWithOffset(size_t bytesLeft, char* start) {
             OnEvent(CurEvent.Type, CurEvent.Data);
             CurEvent.BytesReaded = 0;
         }
-        _OnReadWithOffset(bytesLeft - dataBytesLeft, start + dataBytesLeft);
+        _OnReadWithOffset(start + dataBytesLeft, bytesLeft - dataBytesLeft);
     }
 }

@@ -13,31 +13,36 @@ protected:
 public:
     virtual ~EventsClientC() override;
 private:
-    using BasicClientC::SocketBuffer;
     using BasicClientC::Write;
     using BasicClientC::WriteResultE;
     using BasicClientC::OnConnect;
     using BasicClientC::OnDisconnect;
     using BasicClientC::IsBasicClientDestructorLast;
-    inline virtual void OnConnect() override final {
-        BasicClientC::OnConnect();
-        OnEvent(NetworkEventsNS::EventsTypesToClientE::ConnectedToServer, {});
-    }
-    inline virtual void OnDisconnect(DisconnectReasonE reason) override final {
-        BasicClientC::OnDisconnect(reason);
-        NetworkEventsNS::EventTypeToClientU ev; ev.DisconnectedFromServer = { reason };
-        OnEvent(NetworkEventsNS::EventsTypesToClientE::DisconnectedFromServer, ev);
-    };
     struct{
         NetworkEventsNS::EventsTypesToClientE Type;
         NetworkEventsNS::EventTypeToClientU Data;
         //variables to not check for every possible event type when trying to get its size
         size_t BytesReaded = 0, BytesLeftToRead = 0;
     } CurEvent;
-    void _OnReadWithOffset(size_t bytesLeft, char* start);
-    virtual void OnRead(size_t bytesRead) override final { _OnReadWithOffset(bytesRead, SocketBuffer); }
+    void _OnReadWithOffset(char const* start, size_t bytesLeft);
+    virtual void OnRead(char const* data, size_t len) override final {
+        BasicClientC::OnRead(data, len);
+        _OnReadWithOffset(data, len);
+    }
+private:
+    struct {
+        void* Data = nullptr;
+        void(*Callback)(void*, NetworkEventsNS::EventsTypesToClientE, NetworkEventsNS::EventTypeToClientU const&) = nullptr;
+    } OnEventCallback;
+public:
+    void sOnEventCallback(void* data, decltype(OnEventCallback.Callback) callback){
+        ThreadLockC TL(this); OnEventCallback = { data, callback };
+    }
+    inline decltype(OnEventCallback) const& gOnEventCallback() const { ThreadLockC TL(this); return OnEventCallback; }
 protected:
-    inline virtual void OnEvent(NetworkEventsNS::EventsTypesToClientE eventType, NetworkEventsNS::EventTypeToClientU const& eventData) {};
+    inline virtual void OnEvent(NetworkEventsNS::EventsTypesToClientE eventType, NetworkEventsNS::EventTypeToClientU const& eventData) {
+        if (OnEventCallback.Callback) OnEventCallback.Callback(OnEventCallback.Data, eventType, eventData);
+    };
 public:
     using SendEventResultE = WriteResultE;
 protected:
@@ -50,7 +55,8 @@ protected:
 public:
     template<NetworkEventsNS::EventsTypesToServerE EventTypeEnum>
     SendEventResultE SendEvent(const NetworkEventsNS::EventTypeToServerS<EventTypeEnum>& eventData) {
-        std::lock_guard lg(Mutex);
+        ThreadLockC TL(this);
+        if (!TL) return SendEventResultE::StoppedByClient;
         return _SendEvent(eventData);
     }
 };

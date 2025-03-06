@@ -67,7 +67,7 @@ namespace ConsoleCommandsNS {
                 switch (err) {
                 case BasicClientC::DisconnectResultE::NotConnectedToAnything: outProc << "not connected to anything"; break;
                 case BasicClientC::DisconnectResultE::UnknownError: outProc << "unknown error"; break;
-                case BasicClientC::DisconnectResultE::OperationAborted: outProc << "operation aborted"; break;
+                case BasicClientC::DisconnectResultE::Canceled: outProc << "operation aborted"; break;
                 default: outProc << "unhandled unknown error"; break;
                 }
             }},
@@ -113,6 +113,12 @@ namespace ConsoleCommandsNS {
                     outProc << "client is not connected to any server" << outProc.EndLine; return;
                 case ChatClientC::LogOutResultE::NotLoggedIn:
                     outProc << "client is not registered as any user" << outProc.EndLine; return;
+                case ChatClientC::LogOutResultE::Canceled:
+                    outProc << "canceled operation" << outProc.EndLine; return;
+                case ChatClientC::LogOutResultE::UnknownError:
+                    outProc << "failed with unknown error" << outProc.EndLine; return;
+                default:
+                    outProc << "unhandler error occured" << outProc.EndLine; return;
                 }
             }},
             {"exit",[](ConsoleManagerNS::OutputNS::OutputtingProcessC&) {
