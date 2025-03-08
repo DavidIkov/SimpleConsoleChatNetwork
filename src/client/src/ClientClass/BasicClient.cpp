@@ -1,7 +1,7 @@
 #include"BasicClient.hpp"
 
 BasicClientC::~BasicClientC() {
-    if (IsBasicClientDestructorLast) ThreadSafety.Data->Mutex.lock();
+    if (IsBasicClientDestructorLast) ThreadSafety.LockThread();
 }
 void BasicClientC::_StartReading_Async() {
     //no need for lock guard here since this function is called only when mutex is locked
@@ -39,7 +39,7 @@ void BasicClientC::_StartReading_Async() {
                 }
             }
             else {
-                _Disconnect(false);
+                Disconnect(false);
             }
             return;
         }
@@ -50,10 +50,10 @@ void BasicClientC::_StartReading_Async() {
 BasicClientC::BasicClientC(asio::io_context& context) :Context(context), Socket(context) {}
 auto BasicClientC::Connect(asio::ip::tcp::endpoint ep) -> ConnectResultE {
     ThreadLockC TL(this);
-    if (!TL) return ConnectResultE::AbortedByClient;
-    if (_gIsConnected()) return ConnectResultE::SocketAlreadyConnected;
-    else if (_gIsConnecting()) return ConnectResultE::SocketIsInProgressOfConnecting;
-    else if (_gIsDisconnecting()) return ConnectResultE::SocketIsInternallyDisconnecting;
+    if (!TL) return ConnectResultE::Canceled;
+    if (gIsConnected()) return ConnectResultE::SocketAlreadyConnected;
+    else if (gIsConnecting()) return ConnectResultE::SocketIsInProgressOfConnecting;
+    else if (gIsDisconnecting()) return ConnectResultE::SocketIsInternallyDisconnecting;
     asio::error_code ec;
     Socket.connect(ep, ec);
     if (ec) {
@@ -77,22 +77,23 @@ auto BasicClientC::Connect(asio::ip::tcp::endpoint ep) -> ConnectResultE {
         return ConnectResultE::NoErrors;
     }
 }
-auto BasicClientC::_Disconnect(bool gracefull) -> DisconnectResultE {
-    if (!_gIsConnected()) return DisconnectResultE::NotConnectedToAnything;
-    else if (_gIsDisconnecting()) return DisconnectResultE::AlreadyDisconnecting;
+auto BasicClientC::Disconnect(bool gracefull) -> DisconnectResultE {
+    ThreadLockC TL(this);
+    if (!TL) return DisconnectResultE::Canceled;
+    if (!gIsConnected()) return DisconnectResultE::NotConnectedToAnything;
+    else if (gIsDisconnecting()) return DisconnectResultE::AlreadyDisconnecting;
     OnDisconnect(DisconnectReasonE::ClientDisconnected);
     DisconnectEvent.Active = true;
     DisconnectEvent.ServerResponded = false, DisconnectEvent.Stopped = false, DisconnectEvent.ErrorHappened = false;
     if (gracefull) {
-        if (!*ThreadSafety.LastActive) return DisconnectResultE::Canceled;
         std::thread fullDisconWaitingTh([&] {
-            ThreadSafety.LastActive->Wait([&] { return !*ThreadSafety.LastActive || DisconnectEvent.Stopped || DisconnectEvent.ServerResponded; });
+            TL.Wait([&] { return !TL || DisconnectEvent.Stopped || DisconnectEvent.ServerResponded; });
             });
         asio::error_code ec;
         Socket.shutdown(Socket.shutdown_both, ec);
         if (ec) return DisconnectResultE::UnknownError;
         fullDisconWaitingTh.join();
-        if (!*ThreadSafety.LastActive) return DisconnectResultE::Canceled;
+        if (!TL) return DisconnectResultE::Canceled;
         DisconnectEvent.Active = false;
         if (DisconnectEvent.ErrorHappened) return DisconnectResultE::UnknownErrorOnSocketClosureButSuccessfullDisconnect;
         else if (DisconnectEvent.Stopped) return DisconnectResultE::Canceled;
@@ -106,8 +107,8 @@ auto BasicClientC::_Disconnect(bool gracefull) -> DisconnectResultE {
         return DisconnectResultE::NoErrors;
     }
 }
-auto BasicClientC::__Write(void const* arr, size_t lenInBytes) -> WriteResultE {
-    if (!_gIsConnected()) return WriteResultE::NotConnectedToAnything;
+auto BasicClientC::_Write(void const* arr, size_t lenInBytes) -> WriteResultE {
+    if (!gIsConnected()) return WriteResultE::NotConnectedToAnything;
     if (lenInBytes != 0) {
         size_t bytesOffset = 0;
         asio::error_code ec;

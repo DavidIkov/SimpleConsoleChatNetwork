@@ -3,9 +3,6 @@
 #include"AsioInclude.hpp"
 #include<array>
 
-//todo same as with BasicClient.hpp
-#include"NetworkEvents.hpp"
-
 class BasicClientSlotC : protected ThreadSafety_BaseC {
 private:
     asio::ip::tcp::socket Socket;
@@ -14,82 +11,96 @@ private:
         bool Active = false;
         bool ErrorHappened = false, ClientResponded = false, Stopped = false;
     } DisconnectEvent;
-    inline bool _gIsDisconnecting() const { return DisconnectEvent.Active; }
-protected:
-    inline bool _gIsConnected() const { return Socket.is_open() && !_gIsDisconnecting(); }
+    inline bool gIsDisconnecting() const { return DisconnectEvent.Active; }
 public:
-    inline bool gIsConnected() const { ThreadLockC TL(this); return _gIsConnected(); }
+    inline bool gIsConnected() const { ThreadLockC TL(this); return TL && Socket.is_open() && !gIsDisconnecting(); }
 
 protected:
     bool IsBasicDestructorLast = true;
 public:
     inline BasicClientSlotC(asio::io_context& context) :Socket(context) {};
-    inline virtual ~BasicClientSlotC() { if (IsBasicDestructorLast) ThreadSafety.Data->Mutex.lock(); }
+    inline virtual ~BasicClientSlotC() { if (IsBasicDestructorLast) ThreadSafety.LockThread(); }
     void ListenForConnection(asio::ip::tcp::acceptor& acceptor);
 private:
     void _StartReading();
 
+#pragma region OnRead
 private:
-    struct{ void* Data = nullptr; void(*Callback)(void*, const char*, size_t) = nullptr; } OnReadCallback;
+    struct{ void* Data = nullptr; void(*Callback)(BasicClientSlotC*, void*, const char*, size_t) = nullptr; } OnReadCallback;
 public:
-    inline void sOnReadCallback(void* data, void(*callback)(void*, const char*, size_t)) {
-        ThreadLockC TL(this); OnReadCallback = { data, callback };
+    inline void sOnReadCallback(void* data, decltype(OnReadCallback.Callback) callback) {
+        ThreadLockC TL(this); if(TL) OnReadCallback = { data, callback };
     }
     inline decltype(OnReadCallback) const& gOnReadCallback() const { ThreadLockC TL(this); return OnReadCallback; }
 protected:
     inline virtual void OnRead(const char* data, size_t len) {
-        if (OnReadCallback.Callback) OnReadCallback.Callback(OnReadCallback.Data, data, len);
+        if (OnReadCallback.Callback) OnReadCallback.Callback(this, OnReadCallback.Data, data, len);
     }
+#pragma endregion OnRead
 
-
+#pragma region OnConnect
 private:
-    struct{ void* Data = nullptr; void(*Callback)(void*) = nullptr; } OnConnectCallback;
+    struct{ void* Data = nullptr; void(*Callback)(BasicClientSlotC*, void*) = nullptr; } OnConnectCallback;
 public:
-    inline void sOnConnectCallback(void* data, void(*callback)(void*)) {
-        ThreadLockC TL(this); OnConnectCallback = { data, callback };
+    inline void sOnConnectCallback(void* data, decltype(OnConnectCallback.Callback) callback) {
+        ThreadLockC TL(this); if(TL) OnConnectCallback = { data, callback };
     }
     inline decltype(OnConnectCallback) const& gOnConnectCallback() const { ThreadLockC TL(this); return OnConnectCallback; }
 protected:
     inline virtual void OnConnect() {
-        if (OnConnectCallback.Callback) OnConnectCallback.Callback(OnConnectCallback.Data);
+        if (OnConnectCallback.Callback) OnConnectCallback.Callback(this, OnConnectCallback.Data);
     }
+#pragma endregion OnConnect
 
-public:
-    using DisconnectReasonE = NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::ClientDisconnected>::DisconnectReasonE;
+#pragma region OnConnectionAcceptError
 private:
-    struct{ void* Data = nullptr; void(*Callback)(void*, DisconnectReasonE) = nullptr; } OnDisconnectCallback;
+    struct{ void* Data = nullptr; void(*Callback)(BasicClientSlotC*, void*) = nullptr; } OnConnectionAcceptErrorCallback;
 public:
-    inline void sOnDisconnectCallback(void* data, void(*callback)(void*, DisconnectReasonE)) {
-        ThreadLockC TL(this); OnDisconnectCallback = { data, callback };
+    inline void sOnConnectionAcceptErrorCallback(void* data, decltype(OnConnectionAcceptErrorCallback.Callback) callback) {
+        ThreadLockC TL(this); if(TL) OnConnectionAcceptErrorCallback = { data, callback };
+    }
+    inline decltype(OnConnectionAcceptErrorCallback) const& gOnConnectionAcceptErrorCallback() const { ThreadLockC TL(this); return OnConnectionAcceptErrorCallback; }
+protected:
+    inline virtual void OnConnectionAcceptError() {
+        if (OnConnectionAcceptErrorCallback.Callback) OnConnectionAcceptErrorCallback.Callback(this, OnConnectionAcceptErrorCallback.Data);
+    }
+#pragma endregion OnConnectionAcceptError
+
+#pragma region OnDisconnect
+public:
+    enum class DisconnectReasonE :unsigned char {
+        ServerShutdown, ServerDisconnected, ClientDisconnected, ClientResetedConnection, UnknownError,
+    };
+private:
+    struct{ void* Data = nullptr; void(*Callback)(BasicClientSlotC*, void*, DisconnectReasonE) = nullptr; } OnDisconnectCallback;
+public:
+    inline void sOnDisconnectCallback(void* data, decltype(OnDisconnectCallback.Callback) callback) {
+        ThreadLockC TL(this); if(TL) OnDisconnectCallback = { data, callback };
     }
     inline decltype(OnDisconnectCallback) const& gOnDisconnectCallback() const { ThreadLockC TL(this); return OnDisconnectCallback; }
 protected:
-    inline virtual void OnDisconnect(DisconnectReasonE) {
-        if (OnDisconnectCallback.Callback) OnDisconnectCallback.Callback(OnDisconnectCallback.Data);
+    inline virtual void OnDisconnect(DisconnectReasonE reason) {
+        if (OnDisconnectCallback.Callback) OnDisconnectCallback.Callback(this, OnDisconnectCallback.Data, reason);
     }
+#pragma endregion OnDisconnect
 
 public:
     enum class DisconnectResultE :unsigned char {
         NotConnectedToAnything, AlreadyDisconnecting, Canceled,
         UnknownErrorOnSocketClosureButSuccessfullDisconnect, UnknownError, NoErrors
     };
-private:
-    DisconnectResultE _Disconnect(bool gracefull);
 public:
-    DisconnectResultE Disconnect(bool gracefull = true){
-        ThreadLockC TL(this);
-        return _Disconnect(gracefull);
-    }
-
+    DisconnectResultE Disconnect(bool gracefull = true);
 public:
     enum class WriteResultE :unsigned char {
-        ClientIsNotActive, StoppedByServer, UknownError, NoErrors,
+        ClientIsNotActive, Canceled, UknownError, NoErrors,
     };
 private:
     WriteResultE _Write(void const* arr, size_t lenInBytes);
 public:
     template<typename T> WriteResultE Write(T const* arrPtr, size_t arrSize) {
-        ThreadLockC TL(&Client);
+        ThreadLockC TL(this);
+        if (!TL) return WriteResultE::Canceled;
         return _Write(arrPtr, arrSize * sizeof(T));
     }
     template<typename T> WriteResultE Write(T&& var) { return Write(&var, 1); }

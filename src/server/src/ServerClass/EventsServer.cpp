@@ -1,28 +1,15 @@
 #include"EventsServer.hpp"
-#include<algorithm>
+#include"ClientSlotClass/EventsClientSlot.hpp"
 
-void EventsServerC::_OnReadWithOffset(BasicClientS& client, size_t bytesLeft, char* start) {
-    if (bytesLeft == 0) return;
-    if (CurEvent.BytesReaded < sizeof(CurEvent.Type)) {
-        //header of event is not fully read
-        size_t headerBytesLeft = std::min(sizeof(CurEvent.Type) - CurEvent.BytesReaded, bytesLeft);
-        memcpy((char*)&CurEvent.Type + CurEvent.BytesReaded, start, headerBytesLeft);
-        CurEvent.BytesReaded += headerBytesLeft;
-        if (CurEvent.BytesReaded == sizeof(CurEvent.Type)) {//event is identified
-#define SwitchCaseTempMacro(typ) CurEvent.BytesLeftToRead=sizeof(typ);
-            EventsTypesToServerSwitchCaseMacro(CurEvent.Type)
-#undef SwitchCaseTempMacro
-        }
-        _OnReadWithOffset(client, bytesLeft - headerBytesLeft, start + headerBytesLeft);
-    }
-    else {
-        size_t dataBytesLeft = std::min(CurEvent.BytesLeftToRead, bytesLeft);
-        memcpy((char*)&CurEvent.Data + (CurEvent.BytesReaded - sizeof(CurEvent.Type)), start, dataBytesLeft);
-        CurEvent.BytesLeftToRead -= dataBytesLeft; CurEvent.BytesReaded += dataBytesLeft;
-        if (CurEvent.BytesLeftToRead == 0) {//event is finished reading
-            OnEvent(client, CurEvent.Type, CurEvent.Data);
-            CurEvent.BytesReaded = 0;
-        }
-        _OnReadWithOffset(client, bytesLeft - dataBytesLeft, start + dataBytesLeft);
-    }
+void EventsServerC::SetUpCallbacksForNewClient(BasicClientSlotC& client) {
+    BasicServerC::SetUpCallbacksForNewClient(client);
+    dynamic_cast<EventsClientSlotC&>(client).sOnEventCallback(this,
+        [](EventsClientSlotC* client, void* ptr, NetworkEventsNS::EventsTypesToServerE type, NetworkEventsNS::EventTypeToServerU const& data) {
+            EventsServerC* serv = (EventsServerC*)ptr;
+            ThreadLockC TL(serv);
+            serv->OnEvent(*client, type, data);
+        });
+}
+BasicClientSlotC& EventsServerC::ClientFactory(asio::io_context& context) {
+    return *Clients.emplace_back(new EventsClientSlotC(context)).get();
 }

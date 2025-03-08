@@ -5,7 +5,7 @@
 using namespace NetworkEventsNS;
 
 ChatClientC::~ChatClientC() {
-    if (IsChatClientDestructorLast) ThreadSafety.Data->Mutex.lock();
+    if (IsChatClientDestructorLast) ThreadSafety.LockThread();
 }
 ChatClientC::ChatClientC(asio::io_context& context) :EventsClientC(context) {
     IsEventsClientDestructorLast = false;
@@ -21,11 +21,10 @@ void ChatClientC::OnDisconnect(DisconnectReasonE reason) {
     LoggedInUser = false;
     if (LoggingInUserEvent.Active) {
         LoggingInUserEvent.Stopped = true;
-        ThreadSafety.Data->CV.notify_all();
+        ThreadSafety.gCV().notify_all();
     }
     OutputMacro << "Disconnected from server" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
 }
-
 void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU const& eventData) {
     EventsClientC::OnEvent(eventType, eventData);
     switch (eventType) {
@@ -42,7 +41,7 @@ void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU con
         if (LoggingInUserEvent.Active) {
             LoggingInUserEvent.ServerResponded = true;
             LoggingInUserEvent.ResponseType = eventData.LogInResult.RespType;
-            ThreadSafety.Data->CV.notify_all();
+            ThreadSafety.gCV().notify_all();
         }
         break;
     }
@@ -52,12 +51,11 @@ void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU con
     }
     }
 }
-
 auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResultE {
     ThreadLockC TL(this);
     if (!TL) return LogInResultE::Canceled;
-    if (!_gIsConnected()) return LogInResultE::NotConnected;
-    else if (_gIsLoggedInUser()) return LogInResultE::AlreadyLogged;
+    if (!gIsConnected()) return LogInResultE::NotConnected;
+    else if (gIsLoggedInUser()) return LogInResultE::AlreadyLogged;
     else if (username.size() > NetworkEventsNS::ClientUsernameMaxLen) return LogInResultE::UsernameTooLong;
     else if (password.size() > NetworkEventsNS::ClientPasswordMaxLen) return LogInResultE::PasswordTooLong;
     NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::LogInUser> evData;
@@ -69,7 +67,7 @@ auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResu
     std::thread waitingTh([&] {
         TL.Wait([&]()->bool {return !TL || LoggingInUserEvent.Stopped || LoggingInUserEvent.ServerResponded;});
         });
-    if (_SendEvent(evData) != SendEventResultE::NoErrors) return LogInResultE::FailedSendingEvent;
+    if (SendEvent(evData) != SendEventResultE::NoErrors) return LogInResultE::FailedSendingEvent;
     waitingTh.join();
     if (!TL) return LogInResultE::Canceled;
     LoggingInUserEvent.Active = false;
@@ -85,10 +83,10 @@ auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResu
 auto ChatClientC::LogOut()->LogOutResultE {
     ThreadLockC TL(this);
     if (!TL) return LogOutResultE::Canceled;
-    if (!_gIsConnected()) return LogOutResultE::NotConnected;
-    else if (!_gIsLoggedInUser()) return LogOutResultE::NotLoggedIn;
+    if (!gIsConnected()) return LogOutResultE::NotConnected;
+    else if (!gIsLoggedInUser()) return LogOutResultE::NotLoggedIn;
     LoggedInUser = false;
-    SendEventResultE res = _SendEvent(NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::LogOutFromUser>{});
+    SendEventResultE res = SendEvent(NetworkEventsNS::EventTypeToServerS<NetworkEventsNS::EventsTypesToServerE::LogOutFromUser>{});
     if (res == SendEventResultE::Canceled) return LogOutResultE::Canceled;
     else if (res == SendEventResultE::UnknownError) return LogOutResultE::UnknownError;
     return LogOutResultE::NoErrors;

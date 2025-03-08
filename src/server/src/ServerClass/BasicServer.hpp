@@ -6,42 +6,31 @@
 class BasicServerC: protected ThreadSafety_BaseC {
 private:
     asio::ip::tcp::acceptor ConnectionsAcceptor;
-protected:
     std::reference_wrapper<asio::io_context> AsioContext;
-    //first client is not active, it is waiting for connection
+protected:
+    //last client is not active, it is waiting for connection
     std::vector<std::unique_ptr<BasicClientSlotC>> Clients;
-protected:
-    void _RemoveClient(BasicClientSlotC& client);
 public:
-    enum class DisconnectResultE :unsigned char {
-        NotConnectedToAnything, AlreadyDisconnecting, Canceled,
-        UnknownErrorOnSocketClosureButSuccessfullDisconnect, UnknownError, NoErrors
-    };
-public:
-    void RemoveClient(BasicClientSlotC& client) {
-        ThreadLockC TL(this);
-        _RemoveClient(client);
-    }
+    void RemoveClient(BasicClientSlotC& client);
 protected:
-    virtual BasicClientSlotC& ClientFactory();
+    virtual BasicClientSlotC& ClientFactory(asio::io_context& context);
+    virtual void SetUpCallbacksForNewClient(BasicClientSlotC& client);
+    inline virtual void OnConnect(BasicClientSlotC& client) {}
+    using DisconnectReasonE = BasicClientSlotC::DisconnectReasonE;
+    inline virtual void OnDisconnect(BasicClientSlotC& client, DisconnectReasonE reason) {}
 public:
     BasicServerC(asio::io_context& asioContext, asio::ip::port_type port);
     BasicServerC(const BasicServerC&) = delete;
     BasicServerC(BasicServerC&&) = delete;
 protected:
-    bool IsBasicServerDestructorLast = true;
+    bool IsBasicDestructorLast = true;
 public:
-    inline virtual ~BasicServerC() { if (IsBasicServerDestructorLast) ThreadSafety.Data->Mutex.lock(); }
+    inline virtual ~BasicServerC() { if (IsBasicDestructorLast) ThreadSafety.LockThread(); }
     BasicServerC& operator=(const BasicServerC&) = delete;
     BasicServerC& operator=(BasicServerC&&) = delete;
 
     void Shutdown();
 
-protected:
-    enum class OnAcceptConnectionErrorE :unsigned char {
-        ServerClosedAcceptor, UnknownError
-    };
-    inline virtual void OnAcceptConnectionError(OnAcceptConnectionErrorE) {};
-public:
+private:
     void StartAcceptingConnections();
 };

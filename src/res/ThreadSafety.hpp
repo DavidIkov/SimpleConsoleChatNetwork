@@ -2,7 +2,8 @@
 #include<mutex>
 class ThreadSafety_BaseC {
 private:
-    struct _ThreadSafetyC {
+    class _ThreadSafetyC {
+    private:
         struct DataS {
             //why not just use recursive_mutex?
             //becouse when some event happens it needs to unlock the mutex for other thread to lock it on event
@@ -13,34 +14,45 @@ private:
             bool InstanceAlreadyDestructed = false;
         };
         std::shared_ptr<DataS> Data;
+    public:
+        std::condition_variable& gCV() { return Data->CV; }
+        void LockThread() const {
+            if (LastLockedThread != std::this_thread::get_id()) {
+                Data->Mutex.lock();
+                LastLockedThread = std::this_thread::get_id();
+            }
+            LockDepth++;
+        }
 
         //used for more compact code about thread safety
         class LockC {
-            std::shared_ptr<DataS> Ptr;
-            bool FirstLock = false;
+            ThreadSafety_BaseC const* Inst;
         public:
-            LockC(ThreadSafety_BaseC const* inst) :Ptr(inst->ThreadSafety.Data) {
-                if (inst->ThreadSafety.LastLockedThread != std::this_thread::get_id()) {
-                    FirstLock = true;
-                    Ptr->Mutex.lock();
-                    inst->ThreadSafety.LastLockedThread = std::this_thread::get_id();
-                }
+            LockC(ThreadSafety_BaseC const* inst) :Inst(inst) {
+                inst->ThreadSafety.LockThread();
             }
-            ~LockC() { if(FirstLock) Ptr->Mutex.unlock(); }
-            DataS* operator->() { return Ptr.get(); }
+            ~LockC() {
+                Inst->ThreadSafety.LockDepth--;
+                if (Inst->ThreadSafety.LockDepth == 0) Inst->ThreadSafety.Data->Mutex.unlock();
+            }
+            DataS* operator->() { return Inst->ThreadSafety.Data.get(); }
             template<typename LambdaT> void Wait(LambdaT&& lamb) {
-                std::unique_lock ul(Ptr->Mutex, std::defer_lock); Ptr->CV.wait(ul, lamb); ul.release();
+                std::unique_lock ul(Inst->ThreadSafety.Data->Mutex, std::defer_lock); 
+                Inst->ThreadSafety.Data->CV.wait(ul, lamb); ul.release();
             }
-            operator bool() { return !Ptr->InstanceAlreadyDestructed; }
+            operator bool() { return !Inst->ThreadSafety.Data->InstanceAlreadyDestructed; }
         };
+    private:
+        mutable size_t LockDepth = 0;
         mutable std::thread::id LastLockedThread;
-
+    public:
         _ThreadSafetyC() :Data(new DataS) {}
-        //you need to lock mutex in some upper destructor
+        //you need to lock mutex in some upper destructor with LockThread function
         ~_ThreadSafetyC() {
             Data->InstanceAlreadyDestructed = true;
             Data->CV.notify_all();
-            Data->Mutex.unlock();
+            LockDepth--;
+            if (LockDepth == 0) Data->Mutex.unlock();
         }
     };
 protected:

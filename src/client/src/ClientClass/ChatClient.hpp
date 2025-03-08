@@ -4,8 +4,8 @@
 class ChatClientC :public EventsClientC {
 private:
     using EventsClientC::IsEventsClientDestructorLast;
-    using EventsClientC::OnEvent;
     using EventsClientC::SendEvent;
+    using EventsClientC::SendEventResultE;
     virtual void OnConnect() override;
     virtual void OnDisconnect(DisconnectReasonE) override;
 public:
@@ -23,10 +23,8 @@ private:
         NetworkEventsNS::EventTypeToClientS<NetworkEventsNS::EventsTypesToClientE::LogInResult>::RespTypeE ResponseType;
     } LoggingInUserEvent;
     bool LoggedInUser = false;
-protected:
-    inline bool _gIsLoggedInUser() const noexcept { return LoggedInUser; }
 public:
-    inline bool gIsLoggedInUser() const noexcept { ThreadLockC TL(this); return TL && _gIsLoggedInUser(); }
+    inline bool gIsLoggedInUser() const noexcept { ThreadLockC TL(this); return TL && LoggedInUser; }
     enum class LogInResultE :unsigned char {
         NotConnected, FailedSendingEvent, Canceled, AlreadyLogged, UsernameTooLong, PasswordTooLong,
         Banned, WrongPassword, LoggedAsNewUser, LoggedAsExistingUser, UnknownRespond

@@ -4,35 +4,30 @@ void BasicClientSlotC::ListenForConnection(asio::ip::tcp::acceptor& acceptor) {
     acceptor.async_accept(Socket, [&](asio::error_code ec) {
         ThreadLockC TL(this);
         if (ec) {
-            if (ec == asio::error::operation_aborted) {
-                OnAcceptConnectionError(OnAcceptConnectionErrorE::ServerClosedAcceptor);
-                return;
-            } else {
-                OnAcceptConnectionError(OnAcceptConnectionErrorE::UnknownError);
-                return;
-            }
+            OnConnectionAcceptError(); return;
         }
         OnConnect();
         _StartReading();
         });
 
 }
-auto BasicClientSlotC::_Disconnect(bool gracefull) -> DisconnectResultE {
-    if (!_gIsConnected()) return DisconnectResultE::NotConnectedToAnything;
-    else if (_gIsDisconnecting()) return DisconnectResultE::AlreadyDisconnecting;
+auto BasicClientSlotC::Disconnect(bool gracefull) -> DisconnectResultE {
+    ThreadLockC TL(this);
+    if (!TL) return DisconnectResultE::Canceled;
+    if (!gIsConnected()) return DisconnectResultE::NotConnectedToAnything;
+    else if (gIsDisconnecting()) return DisconnectResultE::AlreadyDisconnecting;
     OnDisconnect(DisconnectReasonE::ServerDisconnected);
     DisconnectEvent.Active = true;
     DisconnectEvent.ClientResponded = false, DisconnectEvent.Stopped = false, DisconnectEvent.ErrorHappened = false;
     if (gracefull) {
-        if (!*ThreadSafety.LastActive) return DisconnectResultE::Canceled;
         std::thread fullDisconWaitingTh([&] {
-            ThreadSafety.LastActive->Wait([&] { return !*ThreadSafety.LastActive || DisconnectEvent.Stopped || DisconnectEvent.ClientResponded; });
+            TL.Wait([&] { return !TL || DisconnectEvent.Stopped || DisconnectEvent.ClientResponded; });
             });
         asio::error_code ec;
         Socket.shutdown(Socket.shutdown_both, ec);
         if (ec) return DisconnectResultE::UnknownError;
         fullDisconWaitingTh.join();
-        if (!*ThreadSafety.LastActive) return DisconnectResultE::Canceled;
+        if (!TL) return DisconnectResultE::Canceled;
         DisconnectEvent.Active = false;
         if (DisconnectEvent.ErrorHappened) return DisconnectResultE::UnknownErrorOnSocketClosureButSuccessfullDisconnect;
         else if (DisconnectEvent.Stopped) return DisconnectResultE::Canceled;
@@ -100,7 +95,7 @@ auto BasicClientSlotC::_Write(void const* arr, size_t lenInBytes) -> WriteResult
         while ((bytesOffset +=
             Socket.write_some(asio::buffer((char*)arr + bytesOffset, lenInBytes - bytesOffset), ec)) != lenInBytes)
             if (ec) {
-                if (ec == asio::error::operation_aborted) return WriteResultE::StoppedByServer;
+                if (ec == asio::error::operation_aborted) return WriteResultE::Canceled;
                 else return WriteResultE::UknownError;
             }
     }

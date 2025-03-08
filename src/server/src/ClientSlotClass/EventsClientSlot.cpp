@@ -1,10 +1,6 @@
-#include"EventsClient.hpp"
-#include<algorithm>
+#include"EventsClientSlot.hpp"
 
-EventsClientC::~EventsClientC() {
-    if (IsEventsClientDestructorLast) ThreadSafety.LockThread();
-}
-void EventsClientC::_OnReadWithOffset(char const* start, size_t bytesLeft) {
+void EventsClientSlotC::_OnReadWithOffset(char const* start, size_t bytesLeft) {
     if (bytesLeft == 0) return;
     if (CurEvent.BytesReaded < sizeof(CurEvent.Type)) {
         //header of event is not fully read
@@ -13,7 +9,7 @@ void EventsClientC::_OnReadWithOffset(char const* start, size_t bytesLeft) {
         CurEvent.BytesReaded += headerBytesLeft;
         if (CurEvent.BytesReaded == sizeof(CurEvent.Type)) {//event is identified
 #define SwitchCaseTempMacro(typ) CurEvent.BytesLeftToRead=sizeof(typ);
-            EventsTypesToClientSwitchCaseMacro(CurEvent.Type)
+            EventsTypesToServerSwitchCaseMacro(CurEvent.Type)
 #undef SwitchCaseTempMacro
         }
         _OnReadWithOffset(start + headerBytesLeft, bytesLeft - headerBytesLeft);
