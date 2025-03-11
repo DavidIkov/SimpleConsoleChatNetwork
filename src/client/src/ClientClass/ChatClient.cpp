@@ -25,7 +25,9 @@ void ChatClientC::OnDisconnect(DisconnectReasonE reason) {
     }
     OutputMacro << "Disconnected from server" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
 }
+#include<iostream>
 void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU const& eventData) {
+    std::cout << "\n\nOnEvent\n\n" << std::flush;
     EventsClientC::OnEvent(eventType, eventData);
     switch (eventType) {
     case EventsTypesToClientE::UserConnected: {
@@ -64,11 +66,19 @@ auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResu
 
     LoggingInUserEvent.Active = true;
     LoggingInUserEvent.ServerResponded = false, LoggingInUserEvent.Stopped = false;
-    std::thread waitingTh([&] {
-        TL.Wait([&]()->bool {return !TL || LoggingInUserEvent.Stopped || LoggingInUserEvent.ServerResponded;});
-        });
     if (SendEvent(evData) != SendEventResultE::NoErrors) return LogInResultE::FailedSendingEvent;
-    waitingTh.join();
+    /*
+    ThreadSafety.LockDepth--;
+    ThreadSafety.Data->Mutex.unlock();
+    std::this_thread::sleep_for(std::chrono::seconds(6));
+    std::cout << "\nfinish wait" << std::endl;
+    ThreadSafety.Data->Mutex.lock();
+    ThreadSafety.LockDepth++;
+    */
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::cout << "\nLOGIN WAIT START" << std::endl;
+    TL.Wait([&]()->bool {return !TL || LoggingInUserEvent.Stopped || LoggingInUserEvent.ServerResponded;});
+    std::cout << "\nLOGIN WAIT END" << std::endl;
     if (!TL) return LogInResultE::Canceled;
     LoggingInUserEvent.Active = false;
     if (LoggingInUserEvent.Stopped) return LogInResultE::Canceled;

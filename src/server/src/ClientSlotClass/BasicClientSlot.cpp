@@ -4,12 +4,12 @@ void BasicClientSlotC::ListenForConnection(asio::ip::tcp::acceptor& acceptor) {
     acceptor.async_accept(Socket, [&](asio::error_code ec) {
         ThreadLockC TL(this);
         if (ec) {
-            OnConnectionAcceptError(); return;
+            if (ec != asio::error::operation_aborted) OnConnectionAcceptError();
+            return;
         }
         OnConnect();
         _StartReading();
         });
-
 }
 auto BasicClientSlotC::Disconnect(bool gracefull) -> DisconnectResultE {
     ThreadLockC TL(this);
@@ -40,7 +40,6 @@ auto BasicClientSlotC::Disconnect(bool gracefull) -> DisconnectResultE {
         if (ec) return DisconnectResultE::UnknownErrorOnSocketClosureButSuccessfullDisconnect;
         return DisconnectResultE::NoErrors;
     }
-
 }
 void BasicClientSlotC::_StartReading() {
     Socket.async_read_some(asio::buffer(ReadBuffer, sizeof(ReadBuffer)), [&](asio::error_code ec, size_t bytes) {
@@ -87,7 +86,9 @@ void BasicClientSlotC::_StartReading() {
         _StartReading();
         });
 }
+#include<iostream>
 auto BasicClientSlotC::_Write(void const* arr, size_t lenInBytes) -> WriteResultE {
+    std::cout << "\n\nWRITE " << lenInBytes << "\n\n" << std::flush;
     if (!gIsConnected()) return WriteResultE::ClientIsNotActive;
     if (lenInBytes != 0) {
         size_t bytesOffset = 0;
@@ -95,9 +96,11 @@ auto BasicClientSlotC::_Write(void const* arr, size_t lenInBytes) -> WriteResult
         while ((bytesOffset +=
             Socket.write_some(asio::buffer((char*)arr + bytesOffset, lenInBytes - bytesOffset), ec)) != lenInBytes)
             if (ec) {
+                std::cout << "\n\nWRITE ERR\n\n" << std::flush;
                 if (ec == asio::error::operation_aborted) return WriteResultE::Canceled;
                 else return WriteResultE::UknownError;
             }
     }
+    std::cout << "\n\nWRITE END\n\n" << std::flush;
     return WriteResultE::NoErrors;
 }

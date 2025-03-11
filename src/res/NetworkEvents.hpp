@@ -15,14 +15,14 @@ namespace NetworkEventsNS {
     END_OF_ENUM};
     template<EventsTypesToClientE> struct EventTypeToClientS { static_assert(false, "this event is not specialized"); };
     template<> struct EventTypeToClientS<EventsTypesToClientE::UserConnected> {
-        char Username[ClientUsernameMaxLen + 1];
+        char Username[ClientUsernameMaxLen];
     };
     template<> struct EventTypeToClientS<EventsTypesToClientE::UserDisconnected> {
-        char Username[ClientUsernameMaxLen + 1];
+        char Username[ClientUsernameMaxLen];
     };
     template<> struct EventTypeToClientS<EventsTypesToClientE::LogInResult> {
         enum class RespTypeE :unsigned char {
-            Banned, WrongPassword, LoggedAsNewUser, LoggedAsExistingUser
+            Banned, WrongPassword, LoggedAsNewUser, LoggedAsExistingUser, DeclinedWithUnknownReason
         } RespType;
     };
 

@@ -105,4 +105,8 @@ public:
     }
     template<typename T> WriteResultE Write(T&& var) { return Write(&var, 1); }
 
+    inline asio::ip::tcp::endpoint gConnectedEndpoint() const {
+        ThreadLockC TL(this); if (!TL) return {};
+        return gIsConnected() ? Socket.remote_endpoint() : asio::ip::tcp::endpoint{};
+    }
 };

@@ -18,6 +18,7 @@ protected:
     inline virtual void OnConnect(BasicClientSlotC& client) {}
     using DisconnectReasonE = BasicClientSlotC::DisconnectReasonE;
     inline virtual void OnDisconnect(BasicClientSlotC& client, DisconnectReasonE reason) {}
+    inline virtual void OnAcceptConnectionFailure() {}
 public:
     BasicServerC(asio::io_context& asioContext, asio::ip::port_type port);
     BasicServerC(const BasicServerC&) = delete;
@@ -31,6 +32,6 @@ public:
 
     void Shutdown();
 
-private:
+public:
     void StartAcceptingConnections();
 };

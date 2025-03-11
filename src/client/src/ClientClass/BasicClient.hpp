@@ -96,7 +96,7 @@ public:
     template<typename T> WriteResultE Write(T const* arrPtr, size_t arrSize) {
         ThreadLockC TL(this);
         if (!TL) return WriteResultE::Canceled;
-        return _Write(arrPtr, arrSize);
+        return _Write(arrPtr, arrSize * sizeof(T));
     }
     template<typename T> WriteResultE Write(T&& var) { return Write(&var, 1); }
 };

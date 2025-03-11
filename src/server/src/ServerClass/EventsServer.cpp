@@ -6,7 +6,7 @@ void EventsServerC::SetUpCallbacksForNewClient(BasicClientSlotC& client) {
     dynamic_cast<EventsClientSlotC&>(client).sOnEventCallback(this,
         [](EventsClientSlotC* client, void* ptr, NetworkEventsNS::EventsTypesToServerE type, NetworkEventsNS::EventTypeToServerU const& data) {
             EventsServerC* serv = (EventsServerC*)ptr;
-            ThreadLockC TL(serv);
+            ThreadLockC TL(serv); if (!TL) return;
             serv->OnEvent(*client, type, data);
         });
 }

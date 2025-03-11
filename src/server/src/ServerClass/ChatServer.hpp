@@ -12,14 +12,18 @@ protected:
 public:
     virtual ~ChatServerC() override { if (IsChatDestructorLast) ThreadSafety.LockThread(); }
 protected:
-    /**/
-    struct ChatClientS :virtual public BasicClientS {
-        bool Registered = false;//means that login was correct and so server accepted it
-        size_t UserInd = 0;//index in vector of registered users
-        using BasicClientS::BasicClientS;
-        virtual ~ChatClientS() = default;
+    virtual BasicClientSlotC& ClientFactory(asio::io_context& context) override;
+    virtual void OnConnect(BasicClientSlotC& client) override final;
+    virtual void OnDisconnect(BasicClientSlotC& client, DisconnectReasonE reason) override final;
+    virtual void OnAcceptConnectionFailure() override final;
+public:
+    uint64_t GetUserIDByName(std::string const& username);
+    std::string GetUserNameByID(uint64_t ID);
+    bool CheckIfUserIDIsValid(uint64_t ID);
+    enum class LogInUserResultE :unsigned char {
+        InvalidID, WrongPassword, Banned, Logged
     };
-    virtual BasicClientS& ClientFactory() override;
-private:
-    virtual void OnEvent(BasicClientS& client, NetworkEventsNS::EventsTypesToServerE eventType, NetworkEventsNS::EventTypeToServerU const& eventData) override final;
+    LogInUserResultE LogInUser(uint64_t userID, std::string const& password);
+    uint64_t RegisterNewUser(std::string const& username, std::string const& password);
+    void LogOutFromUser(uint64_t userID);
 };

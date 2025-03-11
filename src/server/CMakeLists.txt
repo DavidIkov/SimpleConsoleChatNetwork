@@ -15,6 +15,8 @@ set_property(TARGET ${CMAKE_PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
 set(RES_DIR "${PROJECT_SOURCE_DIR}/../res")
 
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/src)
+
 target_include_directories(${PROJECT_NAME} PRIVATE ${RES_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${RES_DIR}/asio-1.30.2/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${RES_DIR}/ConsoleManager)

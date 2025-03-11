@@ -11,8 +11,8 @@
 #include"ConsoleCommands.hpp"
 
 int main(int argc, char** argv) {
+    std::cout << "MAIN THREAD " << std::this_thread::get_id() << "\n" << std::flush;
     ConsoleManagerNS::Initialize();
-
     asio::io_context CurContext;
     
     asio::io_context::work IdleWork(CurContext);

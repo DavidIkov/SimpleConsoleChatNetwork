@@ -134,6 +134,7 @@ namespace ConsoleCommandsNS {
     
     inline std::thread InitializeConsoleReadingThread() {
         return std::thread([&] {
+            std::cout << "\nCONSOLE READING " << std::this_thread::get_id() << "\n" << std::flush;
             while (true) {
                 ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC outProc;
                 while (true) {
