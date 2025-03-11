@@ -87,7 +87,7 @@ protected:
 public:
     enum class DisconnectResultE :unsigned char {
         NotConnectedToAnything, AlreadyDisconnecting, Canceled,
-        UnknownErrorOnSocketClosureButSuccessfullDisconnect, UnknownError, NoErrors
+        UnknownErrorButSuccessfullDisconnect, UnknownError, NoErrors
     };
 public:
     DisconnectResultE Disconnect(bool gracefull = true);

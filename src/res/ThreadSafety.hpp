@@ -1,7 +1,6 @@
 #pragma once
 #include<mutex>
 #include<condition_variable>
-#include<iostream>
 class ThreadSafety_BaseC {
 private:
     class _ThreadSafetyC {
@@ -17,10 +16,8 @@ private:
         void LockThread() const {
             if (LastLockedThread != std::this_thread::get_id() || LockDepth==0) {
                 Data->Mutex.lock();
-                std::cout << "\nLOCKED " << std::this_thread::get_id()<<' '<<LockDepth+1<<"\n" << std::flush;
                 LastLockedThread = std::this_thread::get_id();
-            } else 
-                std::cout << "\nSILENT LOCKED " << std::this_thread::get_id()<<' '<<LockDepth+1<<"\n" << std::flush;
+            }
             LockDepth++;
         }
 
@@ -33,18 +30,14 @@ private:
             }
             ~LockC() {
                 Inst->ThreadSafety.LockDepth--;
-                if (Inst->ThreadSafety.LockDepth == 0) std::cout << "\nDESTRUCTOR " << std::this_thread::get_id()<<' '<<Inst->ThreadSafety.LockDepth+1<<"\n" << std::flush;
-                else std::cout << "\nSILENT DESTRUCTOR " << std::this_thread::get_id()<<' '<<Inst->ThreadSafety.LockDepth+1<<"\n" << std::flush;
                 if (Inst->ThreadSafety.LockDepth == 0) Inst->ThreadSafety.Data->Mutex.unlock();
             }
             DataS* operator->() { return Inst->ThreadSafety.Data.get(); }
             template<typename LambdaT> void Wait(LambdaT&& lamb) {
                 std::unique_lock ul(Inst->ThreadSafety.Data->Mutex, std::adopt_lock);
                 Inst->ThreadSafety.LockDepth--;
-                std::cout << "\nWAIT START " << std::this_thread::get_id()<<' '<<Inst->ThreadSafety.LockDepth+1<<"\n" << std::flush;
                 Inst->ThreadSafety.Data->CV.wait(ul, lamb); ul.release();
                 Inst->ThreadSafety.LastLockedThread = std::this_thread::get_id();
-                std::cout << "\nWAIT END" << std::this_thread::get_id()<<' '<<Inst->ThreadSafety.LockDepth+1<<"\n" << std::flush;
                 Inst->ThreadSafety.LockDepth++;
             }
             operator bool() { return !Inst->ThreadSafety.Data->InstanceAlreadyDestructed; }

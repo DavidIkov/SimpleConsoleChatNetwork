@@ -25,9 +25,7 @@ void ChatClientC::OnDisconnect(DisconnectReasonE reason) {
     }
     OutputMacro << "Disconnected from server" << ConsoleManagerNS::OutputNS::OutputtingProcessC::EndLine;
 }
-#include<iostream>
 void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU const& eventData) {
-    std::cout << "\n\nOnEvent\n\n" << std::flush;
     EventsClientC::OnEvent(eventType, eventData);
     switch (eventType) {
     case EventsTypesToClientE::UserConnected: {
@@ -38,7 +36,8 @@ void ChatClientC::OnEvent(EventsTypesToClientE eventType, EventTypeToClientU con
     }
     case EventsTypesToClientE::LogInResult: {
         if (eventData.LogInResult.RespType == EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::LoggedAsExistingUser ||
-            eventData.LogInResult.RespType == EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::LoggedAsNewUser)
+            eventData.LogInResult.RespType == EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::LoggedAsNewUser ||
+            eventData.LogInResult.RespType == EventTypeToClientS<EventsTypesToClientE::LogInResult>::RespTypeE::AlreadyLoggedIn)
             LoggedInUser = true;
         if (LoggingInUserEvent.Active) {
             LoggingInUserEvent.ServerResponded = true;
@@ -67,18 +66,7 @@ auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResu
     LoggingInUserEvent.Active = true;
     LoggingInUserEvent.ServerResponded = false, LoggingInUserEvent.Stopped = false;
     if (SendEvent(evData) != SendEventResultE::NoErrors) return LogInResultE::FailedSendingEvent;
-    /*
-    ThreadSafety.LockDepth--;
-    ThreadSafety.Data->Mutex.unlock();
-    std::this_thread::sleep_for(std::chrono::seconds(6));
-    std::cout << "\nfinish wait" << std::endl;
-    ThreadSafety.Data->Mutex.lock();
-    ThreadSafety.LockDepth++;
-    */
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-    std::cout << "\nLOGIN WAIT START" << std::endl;
     TL.Wait([&]()->bool {return !TL || LoggingInUserEvent.Stopped || LoggingInUserEvent.ServerResponded;});
-    std::cout << "\nLOGIN WAIT END" << std::endl;
     if (!TL) return LogInResultE::Canceled;
     LoggingInUserEvent.Active = false;
     if (LoggingInUserEvent.Stopped) return LogInResultE::Canceled;
@@ -87,6 +75,8 @@ auto ChatClientC::LogIn(std::string username, std::string password) -> LogInResu
     case(decltype(LoggingInUserEvent.ResponseType)::LoggedAsExistingUser): return LogInResultE::LoggedAsExistingUser;
     case(decltype(LoggingInUserEvent.ResponseType)::LoggedAsNewUser): return LogInResultE::LoggedAsNewUser;
     case(decltype(LoggingInUserEvent.ResponseType)::WrongPassword): return LogInResultE::WrongPassword;
+    case(decltype(LoggingInUserEvent.ResponseType)::DeclinedWithUnknownReason): return LogInResultE::DeclinedWithUnknownReason;
+    case(decltype(LoggingInUserEvent.ResponseType)::AlreadyLoggedIn): return LogInResultE::AlreadyLogged;
     default: return LogInResultE::UnknownRespond;
     }
 }

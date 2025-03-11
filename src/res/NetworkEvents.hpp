@@ -22,7 +22,7 @@ namespace NetworkEventsNS {
     };
     template<> struct EventTypeToClientS<EventsTypesToClientE::LogInResult> {
         enum class RespTypeE :unsigned char {
-            Banned, WrongPassword, LoggedAsNewUser, LoggedAsExistingUser, DeclinedWithUnknownReason
+            Banned, WrongPassword, LoggedAsNewUser, LoggedAsExistingUser, DeclinedWithUnknownReason, AlreadyLoggedIn
         } RespType;
     };
 

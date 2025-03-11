@@ -25,19 +25,20 @@ auto BasicClientSlotC::Disconnect(bool gracefull) -> DisconnectResultE {
             });
         asio::error_code ec;
         Socket.shutdown(Socket.shutdown_both, ec);
-        if (ec) return DisconnectResultE::UnknownError;
         fullDisconWaitingTh.join();
         if (!TL) return DisconnectResultE::Canceled;
         DisconnectEvent.Active = false;
-        if (DisconnectEvent.ErrorHappened) return DisconnectResultE::UnknownErrorOnSocketClosureButSuccessfullDisconnect;
+        if (DisconnectEvent.ErrorHappened || ec) return DisconnectResultE::UnknownErrorButSuccessfullDisconnect;
         else if (DisconnectEvent.Stopped) return DisconnectResultE::Canceled;
         return DisconnectResultE::NoErrors;
     }
     else {
-        asio::error_code ec;
-        Socket.close(ec);
+        asio::error_code ec1;
+        Socket.shutdown(Socket.shutdown_both, ec1);
+        asio::error_code ec2;
+        Socket.close(ec2);
         DisconnectEvent.Active = false;
-        if (ec) return DisconnectResultE::UnknownErrorOnSocketClosureButSuccessfullDisconnect;
+        if (ec1 || ec2) return DisconnectResultE::UnknownErrorButSuccessfullDisconnect;
         return DisconnectResultE::NoErrors;
     }
 }
@@ -53,7 +54,10 @@ void BasicClientSlotC::_StartReading() {
                     TL->CV.notify_all();
                 }
                 else {
-                    OnDisconnect(DisconnectReasonE::ServerDisconnected);
+                    OnDisconnect(DisconnectReasonE::ClientDisconnected);
+                    asio::error_code ec;
+                    Socket.shutdown(Socket.shutdown_both, ec);
+                    Socket.close(ec);
                 }
             }
             else if (ec == asio::error::operation_aborted) {
@@ -86,9 +90,7 @@ void BasicClientSlotC::_StartReading() {
         _StartReading();
         });
 }
-#include<iostream>
 auto BasicClientSlotC::_Write(void const* arr, size_t lenInBytes) -> WriteResultE {
-    std::cout << "\n\nWRITE " << lenInBytes << "\n\n" << std::flush;
     if (!gIsConnected()) return WriteResultE::ClientIsNotActive;
     if (lenInBytes != 0) {
         size_t bytesOffset = 0;
@@ -96,11 +98,9 @@ auto BasicClientSlotC::_Write(void const* arr, size_t lenInBytes) -> WriteResult
         while ((bytesOffset +=
             Socket.write_some(asio::buffer((char*)arr + bytesOffset, lenInBytes - bytesOffset), ec)) != lenInBytes)
             if (ec) {
-                std::cout << "\n\nWRITE ERR\n\n" << std::flush;
                 if (ec == asio::error::operation_aborted) return WriteResultE::Canceled;
                 else return WriteResultE::UknownError;
             }
     }
-    std::cout << "\n\nWRITE END\n\n" << std::flush;
     return WriteResultE::NoErrors;
 }

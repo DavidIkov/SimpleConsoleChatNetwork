@@ -27,7 +27,7 @@ public:
     inline bool gIsLoggedInUser() const noexcept { ThreadLockC TL(this); return TL && LoggedInUser; }
     enum class LogInResultE :unsigned char {
         NotConnected, FailedSendingEvent, Canceled, AlreadyLogged, UsernameTooLong, PasswordTooLong,
-        Banned, WrongPassword, LoggedAsNewUser, LoggedAsExistingUser, UnknownRespond
+        Banned, WrongPassword, LoggedAsNewUser, LoggedAsExistingUser, DeclinedWithUnknownReason, UnknownRespond
     };
     inline LogInResultE LogIn(char const* username, char const* password) { return LogIn(std::string(username), std::string(password)); }
     LogInResultE LogIn(std::string username, std::string password);

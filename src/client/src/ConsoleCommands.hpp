@@ -102,6 +102,8 @@ namespace ConsoleCommandsNS {
                     outProc << "failed to login, wrong password" << outProc.EndLine; return;
                 case ChatClientC::LogInResultE::UnknownRespond:
                     outProc << "failed to login becouse server made unknown response" << outProc.EndLine; return;
+                case ChatClientC::LogInResultE::Canceled:
+                    outProc << "canceled login" << outProc.EndLine; return;
                 default: outProc << "unhandled error" << outProc.EndLine; return;
                 }
             }},

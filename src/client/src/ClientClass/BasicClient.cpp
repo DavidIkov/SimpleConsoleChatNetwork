@@ -3,16 +3,9 @@
 BasicClientC::~BasicClientC() {
     if (IsBasicClientDestructorLast) ThreadSafety.LockThread();
 }
-#include<iostream>
 void BasicClientC::_StartReading_Async() {
-    std::cout << "\n\nStartReading\n\n" << std::flush;
-    //no need for lock guard here since this function is called only when mutex is locked
     Socket.async_read_some(asio::buffer(ReadBuffer.data(), ReadBuffer.size()), [this](asio::error_code ec, size_t bytes) {
-        std::cout << "\n\nOnRead!"<<bytes<<"\n\n" << std::flush;
-        std::cout << "\n\n" << ThreadSafety.LockDepth << "\n\n" << std::flush;
-        std::cout << "\n" << std::this_thread::get_id() << ' ' << ThreadSafety.LastLockedThread << "\n" << std::flush;
         ThreadLockC TL(this);
-        std::cout << "\n\nOnRead2!"<<bytes<<"\n\n" << std::flush;
         if (!TL) return;
         if (ec) {
             if (ec == asio::error::eof) {
@@ -92,13 +85,10 @@ auto BasicClientC::Disconnect(bool gracefull) -> DisconnectResultE {
     DisconnectEvent.Active = true;
     DisconnectEvent.ServerResponded = false, DisconnectEvent.Stopped = false, DisconnectEvent.ErrorHappened = false;
     if (gracefull) {
-        std::thread fullDisconWaitingTh([&] {
-            TL.Wait([&] { return !TL || DisconnectEvent.Stopped || DisconnectEvent.ServerResponded; });
-            });
         asio::error_code ec;
         Socket.shutdown(Socket.shutdown_both, ec);
         if (ec) return DisconnectResultE::UnknownError;
-        fullDisconWaitingTh.join();
+        TL.Wait([&] { return !TL || DisconnectEvent.Stopped || DisconnectEvent.ServerResponded; });
         if (!TL) return DisconnectResultE::Canceled;
         DisconnectEvent.Active = false;
         if (DisconnectEvent.ErrorHappened) return DisconnectResultE::UnknownErrorOnSocketClosureButSuccessfullDisconnect;

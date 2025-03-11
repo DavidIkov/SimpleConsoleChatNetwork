@@ -68,7 +68,7 @@ bool ChatServerC::CheckIfUserIDIsValid(uint64_t ID){
 }
 auto ChatServerC::LogInUser(uint64_t userID, std::string const& password) -> LogInUserResultE {
     std::lock_guard LG(RegisteredUsersDataBase.Mutex);
-    if (CheckIfUserIDIsValid(userID)) return LogInUserResultE::InvalidID;
+    if (!CheckIfUserIDIsValid(userID)) return LogInUserResultE::InvalidID;
     auto& user = RegisteredUsersDataBase.Data[userID - 1];
     if (user.Password == password) {
         if (user.Banned) {
