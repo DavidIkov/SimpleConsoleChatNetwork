@@ -4,6 +4,7 @@ void BasicClientSlotC::ListenForConnection(asio::ip::tcp::acceptor& acceptor) {
     acceptor.async_accept(Socket, [&](asio::error_code ec) {
         ThreadLockC TL(this);
         if (ec) {
+            Socket = asio::ip::tcp::socket(*AsioContext);
             if (ec != asio::error::operation_aborted) OnConnectionAcceptError();
             return;
         }
@@ -11,33 +12,32 @@ void BasicClientSlotC::ListenForConnection(asio::ip::tcp::acceptor& acceptor) {
         _StartReading();
         });
 }
-auto BasicClientSlotC::Disconnect(bool gracefull) -> DisconnectResultE {
+auto BasicClientSlotC::Disconnect(bool gracefull, DisconnectReasonE reason) -> DisconnectResultE {
     ThreadLockC TL(this);
     if (!TL) return DisconnectResultE::Canceled;
     if (!gIsConnected()) return DisconnectResultE::NotConnectedToAnything;
     else if (gIsDisconnecting()) return DisconnectResultE::AlreadyDisconnecting;
-    OnDisconnect(DisconnectReasonE::ServerDisconnected);
+    OnDisconnect(reason);
     DisconnectEvent.Active = true;
-    DisconnectEvent.ClientResponded = false, DisconnectEvent.Stopped = false, DisconnectEvent.ErrorHappened = false;
+    DisconnectEvent.ClientResponded = false, DisconnectEvent.Stopped = false;
     if (gracefull) {
-        std::thread fullDisconWaitingTh([&] {
-            TL.Wait([&] { return !TL || DisconnectEvent.Stopped || DisconnectEvent.ClientResponded; });
-            });
-        asio::error_code ec;
-        Socket.shutdown(Socket.shutdown_both, ec);
-        fullDisconWaitingTh.join();
+        asio::error_code ec1, ec2;
+        Socket.shutdown(Socket.shutdown_both, ec1);
+        if (!ec1) TL.Wait([&] { return !TL || DisconnectEvent.Stopped || DisconnectEvent.ClientResponded; });
         if (!TL) return DisconnectResultE::Canceled;
+        Socket.close(ec2);
         DisconnectEvent.Active = false;
-        if (DisconnectEvent.ErrorHappened || ec) return DisconnectResultE::UnknownErrorButSuccessfullDisconnect;
+        Socket = asio::ip::tcp::socket(*AsioContext);
+        if (ec1 || ec2) return DisconnectResultE::UnknownErrorButSuccessfullDisconnect;
         else if (DisconnectEvent.Stopped) return DisconnectResultE::Canceled;
         return DisconnectResultE::NoErrors;
     }
     else {
-        asio::error_code ec1;
+        asio::error_code ec1, ec2;
         Socket.shutdown(Socket.shutdown_both, ec1);
-        asio::error_code ec2;
         Socket.close(ec2);
         DisconnectEvent.Active = false;
+        Socket = asio::ip::tcp::socket(*AsioContext);
         if (ec1 || ec2) return DisconnectResultE::UnknownErrorButSuccessfullDisconnect;
         return DisconnectResultE::NoErrors;
     }
@@ -48,17 +48,10 @@ void BasicClientSlotC::_StartReading() {
         if (ec) {
             if (ec == asio::error::eof) {
                 if (DisconnectEvent.Active) {
-                    Socket.close(ec);
-                    DisconnectEvent.ErrorHappened = (bool)ec;
                     DisconnectEvent.ClientResponded = true;
                     TL->CV.notify_all();
                 }
-                else {
-                    OnDisconnect(DisconnectReasonE::ClientDisconnected);
-                    asio::error_code ec;
-                    Socket.shutdown(Socket.shutdown_both, ec);
-                    Socket.close(ec);
-                }
+                else Disconnect(false, DisconnectReasonE::ClientDisconnected);
             }
             else if (ec == asio::error::operation_aborted) {
                 if (DisconnectEvent.Active) {
@@ -72,6 +65,7 @@ void BasicClientSlotC::_StartReading() {
                     TL->CV.notify_all();
                 }
                 else {
+                    Socket = asio::ip::tcp::socket(*AsioContext);
                     OnDisconnect(DisconnectReasonE::ClientResetedConnection);
                 }
             }
@@ -80,9 +74,7 @@ void BasicClientSlotC::_StartReading() {
                     DisconnectEvent.Stopped = true;
                     TL->CV.notify_all();
                 }
-                else {
-                    OnDisconnect(DisconnectReasonE::UnknownError);
-                }
+                else Disconnect(false, DisconnectReasonE::UnknownError);
             }
             return;
         }

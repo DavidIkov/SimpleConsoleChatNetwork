@@ -4,7 +4,7 @@
 class ThreadSafety_BaseC {
 private:
     class _ThreadSafetyC {
-    public://private:
+    private:
         struct DataS {
             mutable std::mutex Mutex;
             std::condition_variable CV;
@@ -14,7 +14,7 @@ private:
     public:
         std::condition_variable& gCV() { return Data->CV; }
         void LockThread() const {
-            if (LastLockedThread != std::this_thread::get_id() || LockDepth==0) {
+            if (LastLockedThread != std::this_thread::get_id() || LockDepth == 0) {
                 Data->Mutex.lock();
                 LastLockedThread = std::this_thread::get_id();
             }
@@ -42,7 +42,7 @@ private:
             }
             operator bool() { return !Inst->ThreadSafety.Data->InstanceAlreadyDestructed; }
         };
-    //private:
+    private:
         mutable size_t LockDepth = 0;
         mutable std::thread::id LastLockedThread;
     public:

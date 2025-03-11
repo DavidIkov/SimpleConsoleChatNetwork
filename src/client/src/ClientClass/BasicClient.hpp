@@ -18,7 +18,7 @@ private:
     bool ConnectedToServer = false;
     struct {
         bool Active = false;
-        bool ErrorHappened = false, ServerResponded = false, Stopped = false;
+        bool ServerResponded = false, Stopped = false;
     } DisconnectEvent;
     inline bool gIsDisconnecting() const { return DisconnectEvent.Active; }
 public:
@@ -40,11 +40,14 @@ public:
     ConnectResultE Connect(asio::ip::tcp::endpoint ep);
     enum class DisconnectResultE :unsigned char {
         NotConnectedToAnything, AlreadyDisconnecting, Canceled,
-        UnknownErrorOnSocketClosureButSuccessfullDisconnect, UnknownError, NoErrors
+        UnknownErrorButSuccessfullDisconnect, UnknownError, NoErrors
+    };
+    enum class DisconnectReasonE :unsigned char {
+        ServerDisconnected, ClientClosedSocket, ClientDisconnected, ServerResetedConnection, UnknownError
     };
     //gracefull disconnect includes that function will block calling thread until full disconnection
     //process is finished(aka gracefull disconnect)
-    DisconnectResultE Disconnect(bool gracefull = true);
+    DisconnectResultE Disconnect(bool gracefull = true, DisconnectReasonE reason = DisconnectReasonE::ClientDisconnected);
 private:
     struct{ void* Data = nullptr; void(*Callback)(void*) = nullptr; } OnConnectCallback;
 public:
@@ -56,10 +59,6 @@ protected:
     inline virtual void OnConnect() {
         if (OnConnectCallback.Callback) OnConnectCallback.Callback(OnConnectCallback.Data);
         ConnectedToServer = true;
-    };
-
-    enum class DisconnectReasonE :unsigned char {
-        ServerDisconnected, ClientClosedSocket, ClientDisconnected, ServerResetedConnection, Unknown
     };
 private:
     struct{ void* Data = nullptr; void(*Callback)(void*, DisconnectReasonE) = nullptr; } OnDisconnectCallback;

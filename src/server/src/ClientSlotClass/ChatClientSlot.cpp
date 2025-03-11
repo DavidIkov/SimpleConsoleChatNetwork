@@ -6,7 +6,7 @@ void ChatClientSlotC::OnConnect() {
 }
 void ChatClientSlotC::OnDisconnect(DisconnectReasonE reason) {
     BasicClientSlotC::OnDisconnect(reason);
-    if (Logged) { Server->LogOutFromUser(UserID); Logged = false; UserID = 0; }
+    if (Logged) { Server->LogOutFromUser(UserID); Logged = false; }
 }
 using LogInResultEv = NetworkEventsNS::EventTypeToClientS<NetworkEventsNS::EventsTypesToClientE::LogInResult>;
 void ChatClientSlotC::OnEvent(NetworkEventsNS::EventsTypesToServerE eventType, NetworkEventsNS::EventTypeToServerU const& eventData) {

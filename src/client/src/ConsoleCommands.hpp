@@ -59,8 +59,8 @@ namespace ConsoleCommandsNS {
             {"disconnect",[](ConsoleManagerNS::OutputNS::OutputtingProcessC& outProc) {
                 auto err = DataForCommandsNS::Client->Disconnect();
                 if (err == BasicClientC::DisconnectResultE::NoErrors) return;
-                if (err == BasicClientC::DisconnectResultE::UnknownErrorOnSocketClosureButSuccessfullDisconnect){
-                    outProc << "Disconnected with unknown error on socket closure";
+                if (err == BasicClientC::DisconnectResultE::UnknownErrorButSuccessfullDisconnect){
+                    outProc << "Disconnected with unknown error";
                     return;
                 }
                 outProc << "Failed at disconnecting: ";
@@ -136,7 +136,6 @@ namespace ConsoleCommandsNS {
     
     inline std::thread InitializeConsoleReadingThread() {
         return std::thread([&] {
-            std::cout << "\nCONSOLE READING " << std::this_thread::get_id() << "\n" << std::flush;
             while (true) {
                 ConsoleManagerNS::OutputNS::OutputtingProcessWrapperC outProc;
                 while (true) {

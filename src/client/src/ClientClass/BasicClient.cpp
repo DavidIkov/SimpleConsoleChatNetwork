@@ -10,15 +10,10 @@ void BasicClientC::_StartReading_Async() {
         if (ec) {
             if (ec == asio::error::eof) {
                 if (DisconnectEvent.Active) {
-                    Socket.close(ec);
-                    DisconnectEvent.ErrorHappened = (bool)ec;
-                    Socket = asio::ip::tcp::socket(Context.get());
                     DisconnectEvent.ServerResponded = true;
                     TL->CV.notify_all();
-                } else {
-                    Socket = asio::ip::tcp::socket(Context.get());
-                    OnDisconnect(DisconnectReasonE::ServerDisconnected);
-                }
+                } else
+                    Disconnect(false, DisconnectReasonE::ServerDisconnected);
             }
             else if (ec == asio::error::operation_aborted) {
                 if (DisconnectEvent.Active) {
@@ -38,7 +33,10 @@ void BasicClientC::_StartReading_Async() {
                 }
             }
             else {
-                Disconnect(false);
+                if (DisconnectEvent.Active) {
+                    DisconnectEvent.Stopped = true;
+                    TL->CV.notify_all();
+                } else Disconnect(false, DisconnectReasonE::UnknownError);
             }
             return;
         }
@@ -76,30 +74,33 @@ auto BasicClientC::Connect(asio::ip::tcp::endpoint ep) -> ConnectResultE {
         return ConnectResultE::NoErrors;
     }
 }
-auto BasicClientC::Disconnect(bool gracefull) -> DisconnectResultE {
+auto BasicClientC::Disconnect(bool gracefull, DisconnectReasonE reason) -> DisconnectResultE {
     ThreadLockC TL(this);
     if (!TL) return DisconnectResultE::Canceled;
     if (!gIsConnected()) return DisconnectResultE::NotConnectedToAnything;
     else if (gIsDisconnecting()) return DisconnectResultE::AlreadyDisconnecting;
-    OnDisconnect(DisconnectReasonE::ClientDisconnected);
+    OnDisconnect(reason);
     DisconnectEvent.Active = true;
-    DisconnectEvent.ServerResponded = false, DisconnectEvent.Stopped = false, DisconnectEvent.ErrorHappened = false;
+    DisconnectEvent.ServerResponded = false, DisconnectEvent.Stopped = false;
     if (gracefull) {
-        asio::error_code ec;
-        Socket.shutdown(Socket.shutdown_both, ec);
-        if (ec) return DisconnectResultE::UnknownError;
-        TL.Wait([&] { return !TL || DisconnectEvent.Stopped || DisconnectEvent.ServerResponded; });
+        asio::error_code ec1, ec2;
+        Socket.shutdown(Socket.shutdown_both, ec1);
+        if (!ec1) TL.Wait([&] { return !TL || DisconnectEvent.Stopped || DisconnectEvent.ServerResponded; });
         if (!TL) return DisconnectResultE::Canceled;
+        Socket.close(ec2);
         DisconnectEvent.Active = false;
-        if (DisconnectEvent.ErrorHappened) return DisconnectResultE::UnknownErrorOnSocketClosureButSuccessfullDisconnect;
+        Socket = asio::ip::tcp::socket(Context.get());
+        if (ec1 || ec2) return DisconnectResultE::UnknownErrorButSuccessfullDisconnect;
         else if (DisconnectEvent.Stopped) return DisconnectResultE::Canceled;
         return DisconnectResultE::NoErrors;
     }
     else {
-        asio::error_code ec;
-        Socket.close(ec);
+        asio::error_code ec1, ec2;
+        Socket.shutdown(Socket.shutdown_both, ec1);
+        Socket.close(ec2);
         DisconnectEvent.Active = false;
-        if (ec) return DisconnectResultE::UnknownErrorOnSocketClosureButSuccessfullDisconnect;
+        Socket = asio::ip::tcp::socket(Context.get());
+        if (ec1 || ec2) return DisconnectResultE::UnknownErrorButSuccessfullDisconnect;
         return DisconnectResultE::NoErrors;
     }
 }

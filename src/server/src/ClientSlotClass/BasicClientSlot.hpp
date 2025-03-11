@@ -5,11 +5,12 @@
 
 class BasicClientSlotC : protected ThreadSafety_BaseC {
 private:
+    asio::io_context* AsioContext;
     asio::ip::tcp::socket Socket;
     std::array<char, 64> ReadBuffer;
     struct {
         bool Active = false;
-        bool ErrorHappened = false, ClientResponded = false, Stopped = false;
+        bool ClientResponded = false, Stopped = false;
     } DisconnectEvent;
     inline bool gIsDisconnecting() const { return DisconnectEvent.Active; }
 public:
@@ -18,7 +19,7 @@ public:
 protected:
     bool IsBasicDestructorLast = true;
 public:
-    inline BasicClientSlotC(asio::io_context& context) :Socket(context) {};
+    inline BasicClientSlotC(asio::io_context& context) :AsioContext(&context), Socket(context) {};
     inline virtual ~BasicClientSlotC() { if (IsBasicDestructorLast) ThreadSafety.LockThread(); }
     void ListenForConnection(asio::ip::tcp::acceptor& acceptor);
 private:
@@ -90,7 +91,7 @@ public:
         UnknownErrorButSuccessfullDisconnect, UnknownError, NoErrors
     };
 public:
-    DisconnectResultE Disconnect(bool gracefull = true);
+    DisconnectResultE Disconnect(bool gracefull = true, DisconnectReasonE reason=DisconnectReasonE::ServerDisconnected);
 public:
     enum class WriteResultE :unsigned char {
         ClientIsNotActive, Canceled, UknownError, NoErrors,
