@@ -1,12 +1,12 @@
 
 #include <iostream>
 
-#include "networking/socket_tcp.hpp"
+#include "socket/socket_tcp.hpp"
 
 int main(int, char** argv) {
-    Socket_TCP sock;
+    Socket::Socket_TCP sock;
     sock.Open();
-    sock.Connect("127.0.0.1", std::stoi(argv[1]));
+    sock.Connect({127, 0, 0, 1, (uint16_t)std::stoi(argv[1])});
     char buff[100];
     size_t bytes = sock.ReceiveData(buff, 100);
     std::cout << bytes << std::endl;
