@@ -9,10 +9,21 @@
 
 class EventsHandler : private Socket::Socket_TCP {
 public:
+    /*
+     When server accepts connection, it may return raw descriptor, to use this
+     descriptor, use this struct. This is the only scenario where this struct
+     should be used. Dont use this with just raw descriptors that were aquired
+     in any other scenario.
+     */
+    struct ClientRawDescriptor {
+        Socket::RawDescriptorT desc_;
+        ClientRawDescriptor(Socket::RawDescriptorT desc) : desc_(desc) {}
+    };
+
     EventsHandler() = default;
-    EventsHandler(Socket::RawDescriptorT desc);
+    EventsHandler(ClientRawDescriptor desc);
     virtual ~EventsHandler();
-    EventsHandler(Socket_TCP const &) = delete;
+    EventsHandler(EventsHandler const &) = delete;
     EventsHandler &operator=(EventsHandler const &) = delete;
     EventsHandler(EventsHandler &&) noexcept;
     EventsHandler &operator=(EventsHandler &&) noexcept;
@@ -62,6 +73,7 @@ private:
     size_t bytes_readed_ = 0;
     size_t bytes_to_read_ = 0;
 };
+
 template <Events::Type EvTyp>
 void EventsHandler::SendEvent(Events::StructWrapper<EvTyp> const &evData) {
     std::lock_guard LG(mutex_);
@@ -86,6 +98,8 @@ void EventsHandler::Disconnect() {
 void EventsHandler::JoinReadingThread() const { reading_thread_.join(); }
 template <Events::Type EvTyp>
 void EventsHandler::_SendEvent(Events::StructWrapper<EvTyp> const &evData) {
+    auto EvTypLV = EvTyp;
+    EventsHandler::_SendData(&EvTypLV, sizeof(EvTypLV));
     EventsHandler::_SendData(&evData, sizeof(evData));
 }
 bool EventsHandler::_GetIsConnected() const {

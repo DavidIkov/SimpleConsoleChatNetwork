@@ -3,17 +3,15 @@
 
 #include <stdexcept>
 
-EventsHandler::EventsHandler(Socket::RawDescriptorT desc) : Socket_TCP(desc) {}
+EventsHandler::EventsHandler(ClientRawDescriptor desc)
+    : Socket_TCP(desc.desc_),
+      reading_thread_(std::thread([this]() { _ReadingThreadFunc(); })) {}
 EventsHandler::~EventsHandler() {
     std::lock_guard LG(mutex_);
     if (_GetIsConnected()) _Disconnect();
 }
 void EventsHandler::_SendData(void const* data, size_t bytes) {
-    size_t bytes_sent;
-    while (bytes) {
-        bytes_sent = Socket_TCP::_SendData(data, bytes);
-        bytes -= bytes_sent;
-    }
+    Socket_TCP::_FullySendData(data, bytes);
 }
 
 void EventsHandler::_ProcessRawData(size_t bytes) {
@@ -52,6 +50,7 @@ void EventsHandler::_Connect(const Socket::Endpoint& endp) {
     Socket_TCP::_Connect(endp);
     reading_thread_ = std::thread([this]() { _ReadingThreadFunc(); });
 }
+
 void EventsHandler::_Disconnect() {
     disconnect_in_progress_ = true;
     Socket_TCP::_ShutdownReading();
@@ -61,24 +60,25 @@ void EventsHandler::_Disconnect() {
 }
 
 void EventsHandler::_ReadingThreadFunc() {
-    std::unique_lock LG(mutex_);
     while (1) {
+        mutex_.lock();
         void* buff = read_buffer_.data() + bytes_readed_;
         size_t bytesToRead = read_buffer_.size() - bytes_readed_;
         size_t bytes = Socket_TCP::_ReceiveData(buff, bytesToRead);
         if (!bytes) {
             if (disconnect_in_progress_) {
-                LG.release();
                 return;
             } else {
-                LG.lock();
+                mutex_.lock();
                 bytes_readed_ = 0, bytes_to_read_ = 0;
                 _Close();
+                mutex_.unlock();
                 return;
             }
         } else {
-            LG.lock();
+            mutex_.lock();
             _ProcessRawData(bytes);
+            mutex_.unlock();
         }
     }
 }

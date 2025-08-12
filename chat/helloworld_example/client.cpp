@@ -16,8 +16,20 @@ public:
 };
 
 int main(int argc, char** argv) {
+    if (argc != 6) {
+        std::cout << "5 parameters required: octet 1-4, port" << std::endl;
+        return -1;
+    }
+    uint8_t octet1 = std::stoi(argv[1]), octet2 = std::stoi(argv[2]),
+            octet3 = std::stoi(argv[3]), octet4 = std::stoi(argv[4]);
+    uint16_t port = std::stoi(argv[5]);
+
     Client client;
-    client.Connect({127, 0, 0, 1, 55555});
+    client.Connect({octet1, octet2, octet3, octet4, port});
+
+    std::cout << "Connected! " << client.GetLocalAddress() << "->"
+              << client.GetRemoteAddress() << std::endl;
+
     client.SendEvent(Events::StructWrapper<Events::Type::HelloWorld>{0});
     client.JoinReadingThread();
     return 0;
