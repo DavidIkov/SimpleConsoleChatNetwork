@@ -83,10 +83,16 @@ size_t Socket_TCP::_ReceiveData(void *data, size_t size) {
 }
 
 RawDescriptorT Socket_TCP::_AcceptConnection() {
-    int newSocket = accept(descriptor_, nullptr, nullptr);
-    if (newSocket == -1)
-        throw std::runtime_error("could not accept socket: " +
-                                 std::to_string(errno));
+    int descriptor=descriptor_;
+    mutex_.unlock();
+    int newSocket = accept(descriptor, nullptr, nullptr);
+    if (newSocket == -1) {
+        if (errno == EBADF)
+            return 0;
+        else
+            throw std::runtime_error("could not accept socket: " +
+                                     std::to_string(errno));
+    }
     return newSocket;
 }
 void Socket_TCP::_MarkSocketAsListening(size_t queue_len) {

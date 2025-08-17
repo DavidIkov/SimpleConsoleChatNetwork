@@ -28,8 +28,8 @@ public:
     EventsHandler(EventsHandler &&) noexcept;
     EventsHandler &operator=(EventsHandler &&) noexcept;
 
-    template <Events::Type EvTyp>
-    void SendEvent(Events::StructWrapper<EvTyp> const &evData);
+    template <events::Type EvTyp>
+    void SendEvent(events::StructWrapper<EvTyp> const &evData);
 
     inline void SendData(void const *data, size_t bytes);
 
@@ -44,14 +44,18 @@ public:
     using Socket_TCP::GetRemoteAddress;
 
 protected:
-    virtual void _OnEvent(Events::Type evTyp, void const *evData) = 0;
+    virtual void _OnEvent(events::Type evTyp, void const *evData) = 0;
 
-    template <Events::Type EvTyp>
-    void _SendEvent(Events::StructWrapper<EvTyp> const &evData);
+    // happens on unpredicted disconnect, for example other side closing
+    // connection.
+    virtual void _OnDisconnect() = 0;
+
+    template <events::Type EvTyp>
+    void _SendEvent(events::StructWrapper<EvTyp> const &evData);
 
     void _SendData(void const *data, size_t bytes);
 
-    [[nodiscard]] inline bool _GetIsConnected() const;
+    [[nodiscard]] bool _GetIsConnected() const;
 
     void _Connect(const Socket::Endpoint &endp);
     void _Disconnect();
@@ -61,21 +65,27 @@ protected:
 
     using Socket_TCP::mutex_;
 
+    // this is a mechanism used in destructors, to lock mutex on top
+    // destructor. Its access is not multithread safe.
+    bool destruction_mutex_locked_ = false;
+
 private:
     void _ReadingThreadFunc();
     mutable std::thread reading_thread_;
+
+    bool reading_ = false;
 
     void _ProcessRawData(size_t bytes);
 
     std::atomic_bool disconnect_in_progress_ = false;
 
-    std::array<uint8_t, Events::MaxSizeOfPacket> read_buffer_;
+    std::array<uint8_t, events::MaxSizeOfPacket> read_buffer_;
     size_t bytes_readed_ = 0;
     size_t bytes_to_read_ = 0;
 };
 
-template <Events::Type EvTyp>
-void EventsHandler::SendEvent(Events::StructWrapper<EvTyp> const &evData) {
+template <events::Type EvTyp>
+void EventsHandler::SendEvent(events::StructWrapper<EvTyp> const &evData) {
     std::lock_guard LG(mutex_);
     _SendEvent(evData);
 }
@@ -96,12 +106,9 @@ void EventsHandler::Disconnect() {
     _Disconnect();
 }
 void EventsHandler::JoinReadingThread() const { reading_thread_.join(); }
-template <Events::Type EvTyp>
-void EventsHandler::_SendEvent(Events::StructWrapper<EvTyp> const &evData) {
+template <events::Type EvTyp>
+void EventsHandler::_SendEvent(events::StructWrapper<EvTyp> const &evData) {
     auto EvTypLV = EvTyp;
     EventsHandler::_SendData(&EvTypLV, sizeof(EvTypLV));
     EventsHandler::_SendData(&evData, sizeof(evData));
-}
-bool EventsHandler::_GetIsConnected() const {
-    return reading_thread_.joinable();
 }

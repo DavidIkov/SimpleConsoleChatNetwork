@@ -42,6 +42,7 @@ protected:
     void _FullySendData(void const *data, size_t bytes);
     // be aware that this function unlocks mutex inside, and not locking it back
     [[nodiscard]] size_t _ReceiveData(void *buffer, size_t size);
+    // be aware that this function unlocks mutex inside, and not locking it back
     [[nodiscard]] RawDescriptorT _AcceptConnection();
     void _MarkSocketAsListening(size_t queue_len);
     void _Close();
@@ -79,7 +80,7 @@ size_t Socket_TCP::ReceiveData(void *buffer, size_t size) {
     return _ReceiveData(buffer, size);
 }
 RawDescriptorT Socket_TCP::AcceptConnection() {
-    std::lock_guard LG(mutex_);
+    mutex_.lock();
     return _AcceptConnection();
 }
 void Socket_TCP::MarkSocketAsListening(size_t queue_len) {

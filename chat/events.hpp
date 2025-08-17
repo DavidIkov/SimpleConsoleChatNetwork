@@ -4,20 +4,55 @@
 #include <cstdint>
 #include <variant>
 
-namespace Events {
+#include "shared.hpp"
+
+namespace events {
 
 using EnumType = uint32_t;
 static_assert(sizeof(EnumType) <= sizeof(size_t), "enum type size is too big");
 
-enum Type : EnumType { HelloWorld, END_OF_ENUM };
+enum class Type : EnumType {
+    HelloWorld,
+    LoginAttemp,
+    LoginAttempRespond,
+    Logout,
+    END_OF_ENUM
+};
 
 template <Type>
 struct StructWrapper;
 
 template <>
-struct StructWrapper<HelloWorld> {
+struct StructWrapper<Type::HelloWorld> {
     int num;
 };
+using HelloWorldEvent = StructWrapper<Type::HelloWorld>;
+
+template <>
+struct StructWrapper<Type::LoginAttemp> {
+    char username_[shared::username_max_length];
+    char password_[shared::password_max_length];
+};
+using LoginAttempEvent = StructWrapper<Type::LoginAttemp>;
+
+template <>
+struct StructWrapper<Type::LoginAttempRespond> {
+    enum class RespondType : uint8_t {
+        LoggedIn,
+        AlreadyLoggedIn,
+        IncorrectUsernameFormat,
+        IncorrectPasswordFormat,
+        WrongPassword,
+        RegisteredAsNewUser,
+        Unknown,
+    } response_;
+    shared::user_id_t id_;
+};
+using LoginAttempRespondEvent = StructWrapper<Type::LoginAttempRespond>;
+
+template <>
+struct StructWrapper<Type::Logout> {};
+using LogoutEvent = StructWrapper<Type::Logout>;
 
 template <EnumType typ, EnumType... typs>
 constexpr size_t _GetMaxSizeOfEvent(
@@ -52,10 +87,12 @@ constexpr auto _CreateSizesOfEvents() {
 constexpr inline auto SizesOfEvents = _CreateSizesOfEvents();
 
 template <EnumType... typ>
-constexpr auto _GetAllEventVariantHelper(std::integer_sequence<EnumType, typ...>) {
+constexpr auto _GetAllEventVariantHelper(
+    std::integer_sequence<EnumType, typ...>) {
     return std::variant<StructWrapper<(Type)typ>...>();
 }
 
-using AllEventsVariant = decltype(_GetAllEventVariantHelper(std::make_integer_sequence<EnumType, (EnumType)Type::END_OF_ENUM>()));
+using AllEventsVariant = decltype(_GetAllEventVariantHelper(
+    std::make_integer_sequence<EnumType, (EnumType)Type::END_OF_ENUM>()));
 
-}  // namespace Events
+}  // namespace events

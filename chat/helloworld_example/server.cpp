@@ -5,14 +5,17 @@
 class Client : public EventsHandler {
 public:
     Client(Socket::RawDescriptorT desc) : EventsHandler(desc) {}
-    void _OnEvent(Events::Type evTyp, void const* evData) override {
-        if (evTyp == Events::Type::HelloWorld) {
+    void _OnEvent(events::Type evTyp, void const* evData) override {
+        if (evTyp == events::Type::HelloWorld) {
             auto const& data =
-                *(Events::StructWrapper<Events::Type::HelloWorld> const*)evData;
+                *(events::StructWrapper<events::Type::HelloWorld> const*)evData;
             std::cout << "Hello world: " << data.num << std::endl;
             _SendEvent(
-                Events::StructWrapper<Events::Type::HelloWorld>{data.num + 1});
+                events::StructWrapper<events::Type::HelloWorld>{data.num + 1});
         }
+    }
+    void _OnDisconnect() override final {
+        std::cout << "other side disconnected" << std::endl;
     }
 };
 
