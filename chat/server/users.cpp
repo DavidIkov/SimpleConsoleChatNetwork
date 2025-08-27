@@ -10,7 +10,6 @@ namespace server {
 
 const UsersHandler::UserDB_Record* UsersHandler::GetUserFromDB_FromID(
     shared::user_id_t id) {
-    std::lock_guard LG(mutex_);
     auto iter =
         std::find_if(database_.begin(), database_.end(),
                      [id](UserDB_Record const& rec) { return rec.id_ == id; });
@@ -21,12 +20,10 @@ const UsersHandler::UserDB_Record* UsersHandler::GetUserFromDB_FromID(
 }
 const UsersHandler::UserDB_Record* UsersHandler::GetUserFromDB_FromUsername(
     const char* username) {
-    std::lock_guard LG(mutex_);
-    auto iter =
-        std::find_if(database_.begin(), database_.end(),
-                     [username](UserDB_Record const& rec) {
-                         return !std::strcmp(rec.username_, username);
-                     });
+    auto iter = std::find_if(database_.begin(), database_.end(),
+                             [username](UserDB_Record const& rec) {
+                                 return !std::strcmp(rec.name_, username);
+                             });
     if (iter == database_.end())
         return nullptr;
     else
@@ -34,21 +31,19 @@ const UsersHandler::UserDB_Record* UsersHandler::GetUserFromDB_FromUsername(
 }
 UsersHandler::UserAddingResult UsersHandler::AddUserToDB(const char* username,
                                                          const char* password) {
-    std::lock_guard LG(mutex_);
-
-    if (!shared::CheckUsernameSyntax(username))
+    if (!shared::CheckUserNameSyntax(username))
         return {0, UserAddingResult::ResultType::IncorrectUsernameFormat};
-    if (!shared::CheckPasswordSyntax(password))
+    if (!shared::CheckUserPasswordSyntax(password))
         return {0, UserAddingResult::ResultType::IncorrectPasswordFormat};
 
     UserDB_Record& rec = database_.emplace_back();
     rec.id_ = ++id_counter_;
-    std::strcpy(rec.username_, username);
+    std::strcpy(rec.name_, username);
     std::strcpy(rec.password_, password);
     return {rec.id_, UserAddingResult::ResultType::AddedInDB};
 }
 
-std::unique_ptr<client::ConnectionHandler> UsersHandler::_ConnectionFactory(
+std::unique_ptr<client::Base> UsersHandler::_ConnectionFactory(
     EventsHandler::ClientRawDescriptor desc) {
     return std::make_unique<client::UserHandler>(this, desc);
 }

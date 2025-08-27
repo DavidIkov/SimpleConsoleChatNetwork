@@ -7,7 +7,6 @@ add_library(networking
 set_property(TARGET networking PROPERTY CXX_STANDARD 17)
 
 add_executable(helloworld_example_client
-    chat/synchronized_value.hpp
     chat/events.hpp
     chat/events_handler.cpp
     chat/events_handler.hpp
@@ -19,7 +18,6 @@ set_property(TARGET helloworld_example_client PROPERTY EXPORT_COMPILE_COMMANDS 1
 target_include_directories(helloworld_example_client PRIVATE ${PROJECT_SOURCE_DIR})
 
 add_executable(helloworld_example_server
-    chat/synchronized_value.hpp
     chat/events.hpp
     chat/events_handler.cpp
     chat/events_handler.hpp
@@ -31,16 +29,19 @@ set_property(TARGET helloworld_example_server PROPERTY EXPORT_COMPILE_COMMANDS 1
 target_include_directories(helloworld_example_server PRIVATE ${PROJECT_SOURCE_DIR})
 
 add_executable(chat_client
-    chat/synchronized_value.hpp
     chat/events.hpp
     chat/shared.cpp
     chat/shared.hpp
+    chat/client/base.cpp
+    chat/client/base.hpp
     chat/events_handler.cpp
     chat/events_handler.hpp
     chat/client/connection.cpp
     chat/client/connection.hpp
     chat/client/user.cpp
     chat/client/user.hpp
+    chat/client/room.cpp
+    chat/client/room.hpp
     chat/client/main.cpp
 )
 target_link_libraries(chat_client networking stdc++)
@@ -49,20 +50,27 @@ set_property(TARGET chat_client PROPERTY EXPORT_COMPILE_COMMANDS 1)
 target_include_directories(chat_client PRIVATE ${PROJECT_SOURCE_DIR})
 
 add_executable(chat_server
-    chat/synchronized_value.hpp
     chat/events.hpp
     chat/shared.cpp
     chat/shared.hpp
     chat/events_handler.cpp
     chat/events_handler.hpp
+    chat/server/base.cpp
+    chat/server/base.hpp
     chat/server/connections.cpp
     chat/server/connections.hpp
     chat/server/users.cpp
     chat/server/users.hpp
+    chat/server/rooms.cpp
+    chat/server/rooms.hpp
+    chat/server/client/base.cpp
+    chat/server/client/base.hpp
     chat/server/client/connection.cpp
     chat/server/client/connection.hpp
     chat/server/client/user.cpp
     chat/server/client/user.hpp
+    chat/server/client/room.cpp
+    chat/server/client/room.hpp
     chat/server/main.cpp
 )
 target_link_libraries(chat_server networking stdc++)

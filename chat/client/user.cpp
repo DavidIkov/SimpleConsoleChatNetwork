@@ -4,57 +4,69 @@
 #include <iostream>
 
 namespace client {
-UserHandler::~UserHandler() {
-    if (!destruction_mutex_locked_) {
-        destruction_mutex_locked_ = true;
-        mutex_.lock();
-    }
-}
 
-void UserHandler::Login(const char *username, const char *password) {
-    std::lock_guard LG(mutex_);
+void UserHandler::Login(const char *name, const char *password) {
+    if (!shared::CheckUserNameSyntax(name))
+        throw std::logic_error("incorrect room name syntax");
+    if (!shared::CheckUserPasswordSyntax(name))
+        throw std::logic_error("incorrect password syntax");
 
-    if (!shared::CheckUsernameSyntax(username)) {
-        std::cout << "incorrect username syntax" << std::endl;
-        return;
-    }
-    if (!shared::CheckPasswordSyntax(username)) {
-        std::cout << "incorrect password syntax" << std::endl;
-        return;
-    }
+    if (waiting_for_login_respond_)
+        throw std::logic_error("already waiting for login respond");
+    if (IsLoggedIn()) throw std::logic_error("already logged in");
 
-    std::strcpy(username_, username);
+    std::strcpy(user_.name_, name);
 
     events::LoginAttempEvent login_attemp;
-    std::strcpy(login_attemp.username_, username);
+    std::strcpy(login_attemp.name_, name);
     std::strcpy(login_attemp.password_, password);
-    _SendEvent(login_attemp);
+    SendEvent(login_attemp);
+
+    waiting_for_login_respond_ = true;
+
+    std::unique_lock LG(mutex_, std::adopt_lock);
+    event_respond_cv_.wait(
+        LG, [&]() -> bool { return !waiting_for_login_respond_; });
+    LG.release();
 }
+
 void UserHandler::Logout() {
-    std::lock_guard LG(mutex_);
-    if (id_) {
-        std::cout << "unlogged from " << id_ << " aka " << username_
-                  << std::endl;
-        id_ = 0;
-        _SendEvent(events::LogoutEvent{});
-    } else {
-        std::cout << "cant unlog while not logged" << std::endl;
-    }
+    if (!IsLoggedIn()) throw std::logic_error("not logged in");
+
+    std::cout << "unlogged from " << user_ << std::endl;
+    user_.id_ = 0;
+    SendEvent(events::LogoutEvent{});
 }
-void UserHandler::_OnEvent(events::Type evTyp, void const *evData) {
-    if (evTyp == events::Type::LoginAttempRespond) {
-        auto const &respond_data = *(events::LoginAttempRespondEvent *)evData;
+
+void UserHandler::Disconnect() {
+    if (IsLoggedIn()) Logout();
+    ConnectionHandler::Disconnect();
+}
+
+void UserHandler::_OnDisconnect() {
+    if (IsLoggedIn()) Logout();
+    ConnectionHandler::_OnDisconnect();
+}
+
+void UserHandler::_OnEvent(EventData const &ev_data) {
+    if (ev_data.type_ == events::Type::LoginAttempRespond) {
+        if (!waiting_for_login_respond_) {
+            std::cout << "got login attemp respond, while not waiting for it"
+                      << std::endl;
+            return;
+        }
+        auto const &respond_data =
+            *(events::LoginAttempRespondEvent *)ev_data.data_;
         if (respond_data.id_) {
-            id_ = respond_data.id_;
+            user_.id_ = respond_data.id_;
             switch (respond_data.response_) {
                 case events::LoginAttempRespondEvent::RespondType::LoggedIn:
-                    std::cout << "logged into " << id_ << " aka " << username_
-                              << std::endl;
+                    std::cout << "logged into " << user_ << std::endl;
                     break;
                 case events::LoginAttempRespondEvent::RespondType::
                     RegisteredAsNewUser:
-                    std::cout << "logged into " << id_ << " aka " << username_
-                              << " as new user" << std::endl;
+                    std::cout << "logged into " << user_ << " as new user"
+                              << std::endl;
                     break;
                 default:
                     std::cout << "logged in, unknown respond" << std::endl;
@@ -67,8 +79,8 @@ void UserHandler::_OnEvent(events::Type evTyp, void const *evData) {
                     std::cout << "user is already logged in" << std::endl;
                     break;
                 case events::LoginAttempRespondEvent::RespondType::
-                    IncorrectUsernameFormat:
-                    std::cout << "incorrect username format" << std::endl;
+                    IncorrectNameFormat:
+                    std::cout << "incorrect name format" << std::endl;
                     break;
                 case events::LoginAttempRespondEvent::RespondType::
                     IncorrectPasswordFormat:
@@ -87,7 +99,10 @@ void UserHandler::_OnEvent(events::Type evTyp, void const *evData) {
             }
         }
 
+        waiting_for_login_respond_ = false;
+        event_respond_cv_.notify_all();
+
     } else
-        ConnectionHandler::_OnEvent(evTyp, evData);
+        ConnectionHandler::_OnEvent(ev_data);
 }
 }  // namespace client

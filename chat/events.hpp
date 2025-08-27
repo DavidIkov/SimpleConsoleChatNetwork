@@ -16,6 +16,9 @@ enum class Type : EnumType {
     LoginAttemp,
     LoginAttempRespond,
     Logout,
+    JoinRoomAttemp,
+    JoinRoomAttempRespond,
+    LeaveRoom,
     END_OF_ENUM
 };
 
@@ -24,14 +27,15 @@ struct StructWrapper;
 
 template <>
 struct StructWrapper<Type::HelloWorld> {
-    int num;
+    unsigned counter_;
 };
+
 using HelloWorldEvent = StructWrapper<Type::HelloWorld>;
 
 template <>
 struct StructWrapper<Type::LoginAttemp> {
-    char username_[shared::username_max_length];
-    char password_[shared::password_max_length];
+    char name_[shared::user_name_max_length];
+    char password_[shared::user_password_max_length];
 };
 using LoginAttempEvent = StructWrapper<Type::LoginAttemp>;
 
@@ -40,7 +44,7 @@ struct StructWrapper<Type::LoginAttempRespond> {
     enum class RespondType : uint8_t {
         LoggedIn,
         AlreadyLoggedIn,
-        IncorrectUsernameFormat,
+        IncorrectNameFormat,
         IncorrectPasswordFormat,
         WrongPassword,
         RegisteredAsNewUser,
@@ -53,6 +57,35 @@ using LoginAttempRespondEvent = StructWrapper<Type::LoginAttempRespond>;
 template <>
 struct StructWrapper<Type::Logout> {};
 using LogoutEvent = StructWrapper<Type::Logout>;
+
+template <>
+struct StructWrapper<Type::JoinRoomAttemp> {
+    char name_[shared::room_name_max_length];
+    char password_[shared::room_password_max_length];
+};
+using JoinRoomAttempEvent = StructWrapper<Type::JoinRoomAttemp>;
+
+template <>
+struct StructWrapper<Type::JoinRoomAttempRespond> {
+    enum class RespondType : uint8_t {
+        Joined,
+        NotLoggedIn,
+        AlreadyInRoom,
+        IncorrectNameFormat,
+        IncorrectPasswordFormat,
+        WrongPassword,
+        JoinedNewRoom,
+        Unknown,
+    } response_;
+    shared::room_id_t id_;
+};
+using JoinRoomAttempRespondEvent = StructWrapper<Type::JoinRoomAttempRespond>;
+
+template <>
+struct StructWrapper<Type::LeaveRoom> {};
+using LeaveRoomEvent = StructWrapper<Type::LeaveRoom>;
+
+// some usefull stuff down here
 
 template <EnumType typ, EnumType... typs>
 constexpr size_t _GetMaxSizeOfEvent(

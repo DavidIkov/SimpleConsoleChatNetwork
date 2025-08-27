@@ -6,8 +6,8 @@ class UsersHandler : public ConnectionsHandler {
 public:
     struct UserDB_Record {
         shared::user_id_t id_;
-        char username_[shared::username_max_length];
-        char password_[shared::password_max_length];
+        char name_[shared::user_name_max_length];
+        char password_[shared::user_password_max_length];
     };
 
     [[nodiscard]] const UserDB_Record* GetUserFromDB_FromID(
@@ -27,7 +27,7 @@ public:
                                                const char* password);
 
 protected:
-    virtual std::unique_ptr<client::ConnectionHandler> _ConnectionFactory(
+    virtual std::unique_ptr<client::Base> _ConnectionFactory(
         EventsHandler::ClientRawDescriptor desc);
 
 private:

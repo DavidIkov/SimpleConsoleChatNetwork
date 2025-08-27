@@ -1,26 +1,22 @@
 
 #pragma once
 
-#include "chat/events_handler.hpp"
+#include "base.hpp"
 
 namespace client {
 
-class ConnectionHandler : protected EventsHandler {
+class ConnectionHandler : public Base {
 public:
     ConnectionHandler() = default;
-    ~ConnectionHandler();
+    ~ConnectionHandler() = default;
     ConnectionHandler(ConnectionHandler const &) = delete;
     ConnectionHandler &operator=(ConnectionHandler const &) = delete;
-    ConnectionHandler(ConnectionHandler &&) noexcept = default;
-    ConnectionHandler &operator=(ConnectionHandler &&) noexcept = default;
+    ConnectionHandler(ConnectionHandler &&) noexcept = delete;
+    ConnectionHandler &operator=(ConnectionHandler &&) noexcept = delete;
 
-    using EventsHandler::Connect;
-    using EventsHandler::Disconnect;
-    using EventsHandler::GetLocalAddress;
-    using EventsHandler::GetRemoteAddress;
+    void Disconnect() override;
 
 protected:
-    void _OnEvent(events::Type evTyp, void const *evData) override;
-    void _OnDisconnect() override final;
+    void _OnDisconnect() override;
 };
 }  // namespace client

@@ -6,70 +6,71 @@
 #include "chat/server/users.hpp"
 
 namespace client {
-UserHandler::UserHandler(server::ConnectionsHandler *server,
-                         ClientRawDescriptor desc)
+UserHandler::UserHandler(server::Base *server, ClientRawDescriptor desc)
     : ConnectionHandler(server, desc) {}
 
-UserHandler::~UserHandler() {
-    if (!destruction_mutex_locked_) {
-        destruction_mutex_locked_ = true;
-        mutex_.lock();
-    }
-}
+void UserHandler::_OnEvent(EventData const &ev_data) {
+    if (ev_data.type_ == events::Type::LoginAttemp) {
+        auto &loginData = *(events::LoginAttempEvent *)ev_data.data_;
 
-void UserHandler::_OnEvent(events::Type evTyp, void const *evData) {
-    if (evTyp == events::Type::LoginAttemp) {
-        if (id_) {
-            _SendEvent(events::LoginAttempRespondEvent{
+        if (user_.id_) {
+            SendEvent(events::LoginAttempRespondEvent{
                 events::LoginAttempRespondEvent::RespondType::AlreadyLoggedIn,
                 0});
             return;
         }
 
-        auto &loginData = *(events::LoginAttempEvent *)evData;
-
         server::UsersHandler &server = *(server::UsersHandler *)server_;
 
         if (server::UsersHandler::UserDB_Record const *found_record =
-                server.GetUserFromDB_FromUsername(loginData.username_)) {
+                server.GetUserFromDB_FromUsername(loginData.name_)) {
             if (std::strcmp(found_record->password_, loginData.password_)) {
-                std::cout << _GetRemoteAddress() << " tried logging in "
-                          << loginData.username_ << " with incorrect password"
+                std::cout << GetRemoteAddress() << " tried logging in "
+                          << loginData.name_ << " with incorrect password"
                           << std::endl;
 
-                _SendEvent(events::LoginAttempRespondEvent{
+                SendEvent(events::LoginAttempRespondEvent{
                     events::LoginAttempRespondEvent::RespondType::WrongPassword,
                     0});
             } else {
-                std::cout << _GetRemoteAddress() << " logged in as "
-                          << loginData.username_ << std::endl;
+                std::cout << GetRemoteAddress() << " logged in as "
+                          << loginData.name_ << std::endl;
 
-                _SendEvent(events::LoginAttempRespondEvent{
+                SendEvent(events::LoginAttempRespondEvent{
                     events::LoginAttempRespondEvent::RespondType::LoggedIn,
                     found_record->id_});
+
+                user_.id_ = found_record->id_;
+                std::memcpy(user_.name_, loginData.name_,
+                            std::strlen(loginData.name_));
             }
         } else {
             server::UsersHandler::UserAddingResult res =
-                server.AddUserToDB(loginData.username_, loginData.password_);
+                server.AddUserToDB(loginData.name_, loginData.password_);
             if (res.id_) {
-                std::cout << _GetRemoteAddress()
+                std::cout << GetRemoteAddress()
                           << " created a new user! say hi to him, his name is "
-                          << loginData.username_ << std::endl;
+                          << loginData.name_ << std::endl;
 
-                _SendEvent(events::LoginAttempRespondEvent{
+                SendEvent(events::LoginAttempRespondEvent{
                     events::LoginAttempRespondEvent::RespondType::
                         RegisteredAsNewUser,
                     res.id_});
+
+                user_.id_ = res.id_;
+                std::memcpy(user_.name_, loginData.name_,
+                            std::strlen(loginData.name_));
+
             } else {
                 switch (res.result_) {
                     case server::UsersHandler::UserAddingResult::ResultType::
                         IncorrectPasswordFormat: {
-                        std::cout << _GetRemoteAddress()
+                        std::cout << GetRemoteAddress()
                                   << " sent malformed password, no null "
                                      "termination. strange."
                                   << std::endl;
 
-                        _SendEvent(events::LoginAttempRespondEvent{
+                        SendEvent(events::LoginAttempRespondEvent{
                             events::LoginAttempRespondEvent::RespondType::
                                 IncorrectPasswordFormat,
                             0});
@@ -77,24 +78,24 @@ void UserHandler::_OnEvent(events::Type evTyp, void const *evData) {
                     }
                     case server::UsersHandler::UserAddingResult::ResultType::
                         IncorrectUsernameFormat: {
-                        std::cout << _GetRemoteAddress()
+                        std::cout << GetRemoteAddress()
                                   << " sent malformed username, no null "
                                      "termination. strange."
                                   << std::endl;
 
-                        _SendEvent(events::LoginAttempRespondEvent{
+                        SendEvent(events::LoginAttempRespondEvent{
                             events::LoginAttempRespondEvent::RespondType::
-                                IncorrectUsernameFormat,
+                                IncorrectNameFormat,
                             0});
                         break;
                     }
                     default: {
-                        std::cout
-                            << _GetRemoteAddress() << "'s attemp to login as "
-                            << loginData.username_
-                            << " resulted in unknown respond" << std::endl;
+                        std::cout << GetRemoteAddress()
+                                  << "'s attemp to login as " << loginData.name_
+                                  << " resulted in unknown respond"
+                                  << std::endl;
 
-                        _SendEvent(events::LoginAttempRespondEvent{
+                        SendEvent(events::LoginAttempRespondEvent{
                             events::LoginAttempRespondEvent::RespondType::
                                 Unknown,
                             0});
@@ -102,16 +103,19 @@ void UserHandler::_OnEvent(events::Type evTyp, void const *evData) {
                 }
             }
         }
-    } else if (evTyp == events::Type::Logout) {
-        if (!id_)
-            std::cout << _GetRemoteAddress()
-                      << " tried to logout while no logged in" << std::endl;
-        else {
-            std::cout << "user " << id_ << " aka " << username_ << " aka "
-                      << _GetRemoteAddress() << " logged out" << std::endl;
-            id_ = 0;
-        }
+    } else if (ev_data.type_ == events::Type::Logout) {
+        if (IsLoggedIn()) {
+            _OnLogOut();
+            user_.id_ = 0;
+        } else
+            std::cout << GetRemoteAddress()
+                      << " tried to logout while not logged in" << std::endl;
     } else
-        ConnectionHandler::_OnEvent(evTyp, evData);
+        ConnectionHandler::_OnEvent(ev_data);
 }
+
+void UserHandler::_OnLogOut() {
+    std::cout << user_ << " logged out" << std::endl;
+}
+
 }  // namespace client

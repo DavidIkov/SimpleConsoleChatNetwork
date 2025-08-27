@@ -4,13 +4,13 @@
 
 class Client : public EventsHandler {
 public:
-    void _OnEvent(events::Type evTyp, void const* evData) override {
-        if (evTyp == events::Type::HelloWorld) {
+    void _OnEvent(EventData const& ev_data) override {
+        if (ev_data.type_ == events::Type::HelloWorld) {
             auto const& data =
-                *(events::StructWrapper<events::Type::HelloWorld> const*)evData;
-            std::cout << "Hello world: " << data.num << std::endl;
-            _SendEvent(
-                events::StructWrapper<events::Type::HelloWorld>{data.num + 1});
+                *(events::StructWrapper<events::Type::HelloWorld> const*)ev_data.data_;
+            std::cout << "Hello world: " << data.counter_ << std::endl;
+            SendEvent(
+                events::StructWrapper<events::Type::HelloWorld>{data.counter_ + 1});
         }
     }
     void _OnDisconnect() override final {
@@ -28,12 +28,17 @@ int main(int argc, char** argv) {
     uint16_t port = std::stoi(argv[5]);
 
     Client client;
-    client.Connect({octet1, octet2, octet3, octet4, port});
 
-    std::cout << "Connected! " << client.GetLocalAddress() << "->"
-              << client.GetRemoteAddress() << std::endl;
+    auto LG = client.AquireLock();
 
-    client.SendEvent(events::StructWrapper<events::Type::HelloWorld>{0});
+    {
+        client.Connect({octet1, octet2, octet3, octet4, port});
+
+        std::cout << "Connected! " << client.GetLocalAddress() << "->"
+                  << client.GetRemoteAddress() << std::endl;
+
+        client.SendEvent(events::StructWrapper<events::Type::HelloWorld>{0});
+    }
     client.JoinReadingThread();
     return 0;
 }

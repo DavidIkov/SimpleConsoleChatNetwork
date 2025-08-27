@@ -3,15 +3,12 @@
 #include <iostream>
 
 namespace client {
-ConnectionHandler::~ConnectionHandler() {
-    if (!destruction_mutex_locked_) {
-        destruction_mutex_locked_ = true;
-        mutex_.lock();
-    }
-}
 
-void ConnectionHandler::_OnEvent(events::Type evTyp, void const *evData) {}
 void ConnectionHandler::_OnDisconnect() {
     std::cout << "other side disconnected" << std::endl;
+}
+void ConnectionHandler::Disconnect() {
+    std::cout << "client disconnected" << std::endl;
+    Base::Disconnect();
 }
 }  // namespace client

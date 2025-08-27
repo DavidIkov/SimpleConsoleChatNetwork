@@ -1,17 +1,18 @@
 
 #include "events_handler.hpp"
 
+#include <cstring>
 #include <stdexcept>
 
 EventsHandler::EventsHandler(ClientRawDescriptor desc)
     : Socket_TCP(desc.desc_),
       reading_thread_(std::thread([this]() { _ReadingThreadFunc(); })) {}
 EventsHandler::~EventsHandler() {
-    if (_GetIsConnected()) _Disconnect();
+    if (GetIsConnected()) Disconnect();
     mutex_.unlock();
 }
 void EventsHandler::_SendData(void const* data, size_t bytes) {
-    Socket_TCP::_FullySendData(data, bytes);
+    Socket_TCP::FullySendData(data, bytes);
 }
 
 void EventsHandler::_ProcessRawData(size_t bytes) {
@@ -34,8 +35,15 @@ void EventsHandler::_ProcessRawData(size_t bytes) {
         bytes -= bytesToRead_, bytes_to_read_ -= bytesToRead_;
 
         if (!bytes_to_read_) {
-            _OnEvent(*(events::Type const*)read_buffer_.data(),
-                     read_buffer_.data() + sizeof(events::EnumType));
+            _OnEvent({*(events::Type const*)read_buffer_.data(),
+                      read_buffer_.data() + sizeof(events::EnumType)});
+
+            if (bytes)
+                std::memcpy(read_buffer_.data(),
+                            read_buffer_.data() + bytesToRead_ +
+                                sizeof(events::EnumType),
+                            bytes);
+
             bytes_readed_ = 0, bytes_to_read_ = 0;
         }
 
@@ -43,19 +51,18 @@ void EventsHandler::_ProcessRawData(size_t bytes) {
     }
 }
 
-void EventsHandler::_Connect(const Socket::Endpoint& endp) {
-    if (_GetIsConnected())
-        throw std::logic_error("socket is already connected");
-    Socket_TCP::_Open();
-    Socket_TCP::_Connect(endp);
+void EventsHandler::Connect(const Socket::Endpoint& endp) {
+    if (GetIsConnected()) throw std::logic_error("socket is already connected");
+    Socket_TCP::Open();
+    Socket_TCP::Connect(endp);
     reading_ = true;
     reading_thread_ = std::thread([this]() { _ReadingThreadFunc(); });
 }
 
-void EventsHandler::_Disconnect() {
+void EventsHandler::Disconnect() {
     disconnect_in_progress_ = true;
-    Socket_TCP::_ShutdownReading();
-    Socket_TCP::_Close();
+    Socket_TCP::ShutdownReading();
+    Socket_TCP::Close();
     reading_thread_.join();
     bytes_readed_ = 0, bytes_to_read_ = 0;
 }
@@ -65,28 +72,27 @@ void EventsHandler::_ReadingThreadFunc() {
         mutex_.lock();
         void* buff = read_buffer_.data() + bytes_readed_;
         size_t bytesToRead = read_buffer_.size() - bytes_readed_;
-        size_t bytes = Socket_TCP::_ReceiveData(buff, bytesToRead);
+        size_t bytes = Socket_TCP::ReceiveData(buff, bytesToRead);
         if (!bytes) {
             if (disconnect_in_progress_) {
+                reading_ = false;
                 return;
             } else {
-                mutex_.lock();
+                std::lock_guard LG(mutex_);
                 bytes_readed_ = 0, bytes_to_read_ = 0;
                 reading_ = false;
-                _Close();
                 _OnDisconnect();
-                mutex_.unlock();
+                Close();
                 return;
             }
         } else {
-            mutex_.lock();
+            std::lock_guard LG(mutex_);
             _ProcessRawData(bytes);
-            mutex_.unlock();
         }
     }
 }
 
-bool EventsHandler::_GetIsConnected() const {
+bool EventsHandler::GetIsConnected() const {
     // when other side suddenly disconnects, thread stops execution, but is
     // still joinable, and socket is not considered reading, since reading
     // stopped.

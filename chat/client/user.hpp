@@ -8,20 +8,30 @@ namespace client {
 class UserHandler : public ConnectionHandler {
 public:
     UserHandler() = default;
-    ~UserHandler();
+    ~UserHandler() = default;
     UserHandler(UserHandler const &) = delete;
     UserHandler &operator=(UserHandler const &) = delete;
-    UserHandler(UserHandler &&) noexcept = default;
-    UserHandler &operator=(UserHandler &&) noexcept = default;
+    UserHandler(UserHandler &&) noexcept = delete;
+    UserHandler &operator=(UserHandler &&) noexcept = delete;
 
-    void Login(const char *username, const char *password);
+    void Login(const char *name, const char *password);
     void Logout();
 
+    [[nodiscard]] inline bool IsLoggedIn() const;
+    [[nodiscard]] inline shared::User GetUser() const;
+
+    void Disconnect() override;
+
 protected:
-    void _OnEvent(events::Type evTyp, void const *evData) override;
+    void _OnEvent(EventData const &ev_data) override;
+    void _OnDisconnect() override;
 
 private:
-    shared::user_id_t id_ = 0;
-    char username_[shared::username_max_length];
+    shared::User user_;
+    bool waiting_for_login_respond_ = false;
 };
+
+bool UserHandler::IsLoggedIn() const { return user_.id_; }
+shared::User UserHandler::GetUser() const { return user_; }
+
 }  // namespace client
