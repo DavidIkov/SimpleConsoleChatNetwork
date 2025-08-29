@@ -26,6 +26,8 @@ protected:
     void _OnEvent(EventData const &ev_data) override;
     void _OnDisconnect() override;
 
+    void _OnLogOut() override;
+
 private:
     shared::Room room_;
     bool waiting_for_room_join_respond_ = false;

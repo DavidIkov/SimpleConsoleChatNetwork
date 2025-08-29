@@ -21,7 +21,6 @@ Socket_TCP &Socket_TCP::operator=(Socket_TCP &&sock) noexcept {
 }
 
 Socket_TCP::~Socket_TCP() {
-    std::lock_guard LG(mutex_);
     if (descriptor_ != -1) Close();
 }
 
@@ -44,6 +43,7 @@ void Socket_TCP::Connect(Endpoint const &endp) {
         throw std::runtime_error("failed to connect socket: " +
                                  std::to_string(errno));
     }
+    connected_ = true;
 }
 
 void Socket_TCP::BindToAddress(Endpoint const &endp) {
@@ -113,6 +113,7 @@ void Socket_TCP::Close() {
                                  std::to_string(errno));
     }
     descriptor_ = -1;
+    connected_ = false;
 }
 
 void Socket_TCP::ShutdownReading() {

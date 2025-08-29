@@ -21,9 +21,10 @@ public:
     Base &operator=(Base &&) noexcept = delete;
 
     using EventsHandler::AquireLock;
-    using EventsHandler::GetIsConnected;
     using EventsHandler::GetLocalAddress;
     using EventsHandler::GetRemoteAddress;
+    using EventsHandler::IsConnected;
+    using EventsHandler::StopThreads;
 
 protected:
     server::Base *server_;

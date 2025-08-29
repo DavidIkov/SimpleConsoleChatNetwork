@@ -9,7 +9,7 @@ public:
     void StartListening(uint16_t port);
     void StopListening();
 
-    inline bool GetIsListening() const;
+    inline bool IsListening() const;
 
     inline const std::vector<std::unique_ptr<client::Base>>& GetConnections()
         const;
@@ -19,9 +19,11 @@ public:
 
     void RemoveConnection(size_t ind);
 
+    void StopThreads() override;
+
 protected:
-    virtual std::unique_ptr<client::Base> _ConnectionFactory(
-        EventsHandler::ClientRawDescriptor desc);
+    std::unique_ptr<client::Base> _ConnectionFactory(
+        EventsHandler::ClientRawDescriptor desc) override;
 
 private:
     std::vector<std::unique_ptr<client::Base>> connections_;
@@ -43,7 +45,7 @@ std::unique_ptr<client::Base>& ConnectionsHandler::GetConnection(size_t ind) {
     return connections_[ind];
 }
 
-bool ConnectionsHandler::GetIsListening() const {
+bool ConnectionsHandler::IsListening() const {
     return accepting_thread_.joinable();
 }
 

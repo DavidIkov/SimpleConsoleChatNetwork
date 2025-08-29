@@ -8,6 +8,8 @@ class Base : protected Socket::Socket_TCP {
 public:
     using Socket_TCP::AquireLock;
 
+    virtual void StopThreads() = 0;
+
 protected:
     virtual std::unique_ptr<client::Base> _ConnectionFactory(
         EventsHandler::ClientRawDescriptor desc) = 0;

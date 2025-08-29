@@ -7,12 +7,12 @@
 
 namespace client {
 
-RoomHandler::~RoomHandler() {
-    // TODO remove empty room, if empty
-}
-
 RoomHandler::RoomHandler(server::Base *server, ClientRawDescriptor desc)
     : UserHandler(server, desc) {}
+
+RoomHandler::~RoomHandler(){
+    //TODO
+}
 
 void RoomHandler::_OnEvent(EventData const &ev_data) {
     if (ev_data.type_ == events::Type::JoinRoomAttemp) {
@@ -33,6 +33,8 @@ void RoomHandler::_OnEvent(EventData const &ev_data) {
         }
 
         server::RoomsHandler &server = *(server::RoomsHandler *)server_;
+
+        auto LG = server.AquireLock();
 
         if (server::RoomsHandler::RoomDB_Record const *found_record =
                 server.GetRoomFromDB_FromName(joinData.name_)) {

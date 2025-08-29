@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
             if (args.size() != 0) {
                 if (args[0] == "exit") {
                     std::cout << "exiting" << std::endl;
-                    return 0;
+                    break;
                 } else if (args[0] == "connect") {
                     if (args.size() != 6)
                         std::cout << "not enough arguments" << std::endl;
@@ -47,13 +47,13 @@ int main(int argc, char** argv) {
                         std::cout << "incorrect arguments amount" << std::endl;
                     else {
                         if (args[1] == "remote") {
-                            if (client.GetIsConnected())
+                            if (client.IsConnected())
                                 std::cout << client.GetRemoteAddress()
                                           << std::endl;
                             else
                                 std::cout << "no remote" << std::endl;
                         } else if (args[1] == "local") {
-                            if (client.GetIsConnected())
+                            if (client.IsConnected())
                                 std::cout << client.GetLocalAddress()
                                           << std::endl;
                             else
@@ -79,7 +79,6 @@ int main(int argc, char** argv) {
                     }
                 } else if (args[0] == "logout") {
                     client.Logout();
-                    std::cout << "logged out" << std::endl;
                 } else if (args[0] == "join") {
                     if (args.size() != 3)
                         std::cout << "incorrect arguments amount" << std::endl;
@@ -94,5 +93,11 @@ int main(int argc, char** argv) {
             std::cout << "error: " << err.what() << std::endl;
         }
     }
+
+    {
+        auto LG = client.AquireLock();
+        client.StopThreads();
+    }
+
     return 0;
 }

@@ -22,6 +22,8 @@ void UserHandler::_OnEvent(EventData const &ev_data) {
 
         server::UsersHandler &server = *(server::UsersHandler *)server_;
 
+        auto LG = server.AquireLock();
+
         if (server::UsersHandler::UserDB_Record const *found_record =
                 server.GetUserFromDB_FromUsername(loginData.name_)) {
             if (std::strcmp(found_record->password_, loginData.password_)) {

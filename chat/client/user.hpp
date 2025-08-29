@@ -26,6 +26,8 @@ protected:
     void _OnEvent(EventData const &ev_data) override;
     void _OnDisconnect() override;
 
+    virtual void _OnLogOut();
+
 private:
     shared::User user_;
     bool waiting_for_login_respond_ = false;

@@ -112,4 +112,11 @@ void RoomHandler::_OnEvent(EventData const &ev_data) {
     } else
         UserHandler::_OnEvent(ev_data);
 }
+
+void RoomHandler::_OnLogOut() {
+    std::cout << "left from room " << room_ << std::endl;
+    room_.id_ = 0;
+    UserHandler::_OnLogOut();
+}
+
 }  // namespace client

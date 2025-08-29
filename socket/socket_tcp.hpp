@@ -33,11 +33,14 @@ public:
     [[nodiscard]] Endpoint GetLocalAddress() const;
     [[nodiscard]] Endpoint GetRemoteAddress() const;
     [[nodiscard]] inline RawDescriptorT GetDescriptor() const;
+    [[nodiscard]] inline bool IsConnected() const;
 
     [[nodiscard]] inline std::unique_lock<std::mutex> AquireLock() const;
 
 protected:
     mutable std::mutex mutex_;
+
+    bool connected_ = false;
 
 private:
     RawDescriptorT descriptor_ = -1;
@@ -51,4 +54,6 @@ RawDescriptorT Socket_TCP::GetDescriptor() const {
 std::unique_lock<std::mutex> Socket_TCP::AquireLock() const {
     return std::unique_lock(mutex_);
 }
+
+bool Socket_TCP::IsConnected() const { return connected_; }
 }  // namespace Socket

@@ -25,6 +25,9 @@ public:
     [[nodiscard]] RoomAddingResult AddRoomToDB(const char* name,
                                                const char* password);
 
+    void AddClientToRoom(shared::room_id_t room_id, client::Base& client);
+    void RemoveClientFromRoom(shared::room_id_t room_id, client::Base& client);
+
 protected:
     virtual std::unique_ptr<client::Base> _ConnectionFactory(
         EventsHandler::ClientRawDescriptor desc);

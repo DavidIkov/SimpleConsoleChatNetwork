@@ -7,4 +7,8 @@ int main(int argc, char** argv) {
         serv.StartListening(12333);
     }
     std::this_thread::sleep_for(std::chrono::hours(10));
+    {
+        auto LG = serv.AquireLock();
+        serv.StopThreads();
+    }
 }

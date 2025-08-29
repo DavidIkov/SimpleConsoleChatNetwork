@@ -8,8 +8,7 @@ EventsHandler::EventsHandler(ClientRawDescriptor desc)
     : Socket_TCP(desc.desc_),
       reading_thread_(std::thread([this]() { _ReadingThreadFunc(); })) {}
 EventsHandler::~EventsHandler() {
-    if (GetIsConnected()) Disconnect();
-    mutex_.unlock();
+    if (IsConnected()) Disconnect();
 }
 void EventsHandler::_SendData(void const* data, size_t bytes) {
     Socket_TCP::FullySendData(data, bytes);
@@ -52,19 +51,27 @@ void EventsHandler::_ProcessRawData(size_t bytes) {
 }
 
 void EventsHandler::Connect(const Socket::Endpoint& endp) {
-    if (GetIsConnected()) throw std::logic_error("socket is already connected");
+    if (IsConnected()) throw std::logic_error("socket is already connected");
     Socket_TCP::Open();
     Socket_TCP::Connect(endp);
-    reading_ = true;
+    stopping_reading_thread_ = false;
     reading_thread_ = std::thread([this]() { _ReadingThreadFunc(); });
 }
 
 void EventsHandler::Disconnect() {
-    disconnect_in_progress_ = true;
+    stopping_reading_thread_ = true;
     Socket_TCP::ShutdownReading();
     Socket_TCP::Close();
-    reading_thread_.join();
+    if (reading_thread_.joinable()) reading_thread_.join();
     bytes_readed_ = 0, bytes_to_read_ = 0;
+}
+
+void EventsHandler::StopThreads() {
+    if (reading_thread_.joinable()) {
+        stopping_reading_thread_ = true;
+        Socket_TCP::ShutdownReading();
+        reading_thread_.join();
+    }
 }
 
 void EventsHandler::_ReadingThreadFunc() {
@@ -74,13 +81,11 @@ void EventsHandler::_ReadingThreadFunc() {
         size_t bytesToRead = read_buffer_.size() - bytes_readed_;
         size_t bytes = Socket_TCP::ReceiveData(buff, bytesToRead);
         if (!bytes) {
-            if (disconnect_in_progress_) {
-                reading_ = false;
+            if (stopping_reading_thread_) {
                 return;
             } else {
                 std::lock_guard LG(mutex_);
                 bytes_readed_ = 0, bytes_to_read_ = 0;
-                reading_ = false;
                 _OnDisconnect();
                 Close();
                 return;
@@ -90,12 +95,4 @@ void EventsHandler::_ReadingThreadFunc() {
             _ProcessRawData(bytes);
         }
     }
-}
-
-bool EventsHandler::GetIsConnected() const {
-    // when other side suddenly disconnects, thread stops execution, but is
-    // still joinable, and socket is not considered reading, since reading
-    // stopped.
-    if (!reading_ && reading_thread_.joinable()) reading_thread_.join();
-    return reading_;
 }

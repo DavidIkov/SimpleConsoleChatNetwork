@@ -19,9 +19,10 @@ public:
     using EventsHandler::AquireLock;
     using EventsHandler::Connect;
     using EventsHandler::Disconnect;
-    using EventsHandler::GetIsConnected;
     using EventsHandler::GetLocalAddress;
     using EventsHandler::GetRemoteAddress;
+    using EventsHandler::IsConnected;
+    using EventsHandler::StopThreads;
 
 protected:
     void _OnEvent(EventData const &ev_data) override;

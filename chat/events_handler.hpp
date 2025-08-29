@@ -31,16 +31,17 @@ public:
     template <events::Type EvTyp>
     inline void SendEvent(events::StructWrapper<EvTyp> const &evData);
 
-    [[nodiscard]] bool GetIsConnected() const;
-
     void Connect(const Socket::Endpoint &endp);
     virtual void Disconnect();
 
     inline void JoinReadingThread() const;
 
+    virtual void StopThreads();
+
     using Socket_TCP::AquireLock;
     using Socket_TCP::GetLocalAddress;
     using Socket_TCP::GetRemoteAddress;
+    using Socket_TCP::IsConnected;
 
     struct EventData {
         events::Type type_;
@@ -62,11 +63,9 @@ private:
 
     void _SendData(void const *data, size_t bytes);
 
-    bool reading_ = false;
-
     void _ProcessRawData(size_t bytes);
 
-    std::atomic_bool disconnect_in_progress_ = false;
+    std::atomic_bool stopping_reading_thread_ = false;
 
     std::array<uint8_t, events::MaxSizeOfPacket> read_buffer_;
     size_t bytes_readed_ = 0;

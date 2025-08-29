@@ -33,7 +33,7 @@ void UserHandler::Login(const char *name, const char *password) {
 void UserHandler::Logout() {
     if (!IsLoggedIn()) throw std::logic_error("not logged in");
 
-    std::cout << "unlogged from " << user_ << std::endl;
+    _OnLogOut();
     user_.id_ = 0;
     SendEvent(events::LogoutEvent{});
 }
@@ -105,4 +105,9 @@ void UserHandler::_OnEvent(EventData const &ev_data) {
     } else
         ConnectionHandler::_OnEvent(ev_data);
 }
+
+void UserHandler::_OnLogOut() {
+    std::cout << "unlogged from " << user_ << std::endl;
+}
+
 }  // namespace client
