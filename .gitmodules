@@ -1,3 +1,6 @@
 [submodule "third_party/sqlitecpp"]
 	path = third_party/sqlitecpp
 	url = https://github.com/SRombauts/SQLiteCpp.git
+[submodule "third_party/spdlog"]
+	path = third_party/spdlog
+	url = https://github.com/gabime/spdlog.git

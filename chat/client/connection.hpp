@@ -15,8 +15,5 @@ public:
     ConnectionHandler &operator=(ConnectionHandler &&) noexcept = delete;
 
     void Disconnect() override;
-
-protected:
-    void _OnDisconnect() override;
 };
 }  // namespace client

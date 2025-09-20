@@ -2,3 +2,5 @@ build/
 *.swp
 *.swo
 .cache
+antlr4*/
+*.db

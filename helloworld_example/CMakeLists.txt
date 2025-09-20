@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.22)
+project(helloworld_example LANGUAGES CXX)
+
+add_executable(helloworld_example_client client.cpp)
+target_link_libraries(helloworld_example_client PUBLIC events_processor)
+set_property(TARGET helloworld_example_client PROPERTY CXX_STANDARD 17)
+set_target_properties(helloworld_example_client PROPERTIES OUTPUT_NAME "client")
+
+add_executable(helloworld_example_server server.cpp)
+target_link_libraries(helloworld_example_server PUBLIC events_processor)
+set_property(TARGET helloworld_example_server PROPERTY CXX_STANDARD 17)
+set_target_properties(helloworld_example_server PROPERTIES OUTPUT_NAME "server")
+

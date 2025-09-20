@@ -1,0 +1,10 @@
+
+event transfer {
+    request {
+        int32 counter;
+    }
+    respond {
+        int32 counter;
+    }
+}
+

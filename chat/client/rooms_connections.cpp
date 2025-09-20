@@ -36,19 +36,23 @@ void RoomHandler::LeaveRoom() {
     if (!IsLoggedIn()) throw std::logic_error("not logged in");
     if (!IsInRoom()) throw std::logic_error("not in room");
 
-    std::cout << "left from room " << room_ << std::endl;
-    room_.id_ = 0;
+    _LeaveRoom();
     SendEvent(events::LeaveRoomEvent{});
 }
 
+void RoomHandler::_LeaveRoom() {
+    std::cout << "left from room " << room_ << std::endl;
+    room_.id_ = 0;
+}
+
 void RoomHandler::Disconnect() {
-    if (IsInRoom()) LeaveRoom();
+    if (IsInRoom()) _LeaveRoom();
     UserHandler::Disconnect();
 }
 
-void RoomHandler::_OnDisconnect() {
-    if (IsInRoom()) LeaveRoom();
-    UserHandler::_OnDisconnect();
+void RoomHandler::Logout() {
+    if (IsInRoom()) _LeaveRoom();
+    UserHandler::Logout();
 }
 
 void RoomHandler::_OnEvent(EventData const &ev_data) {
@@ -111,12 +115,6 @@ void RoomHandler::_OnEvent(EventData const &ev_data) {
 
     } else
         UserHandler::_OnEvent(ev_data);
-}
-
-void RoomHandler::_OnLogOut() {
-    std::cout << "left from room " << room_ << std::endl;
-    room_.id_ = 0;
-    UserHandler::_OnLogOut();
 }
 
 }  // namespace client

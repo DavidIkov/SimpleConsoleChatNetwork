@@ -3,7 +3,9 @@
 #include <ostream>
 #include <string>
 
-namespace Socket {
+#include "spdlog/fmt/bundled/format.h"
+
+namespace networking {
 
 struct Endpoint {
     constexpr inline Endpoint(uint8_t octet1, uint8_t octet2, uint8_t octet3,
@@ -21,18 +23,32 @@ struct Endpoint {
                std::to_string(ip_ & 0xFF);
     }
 
+    std::string ToString() const {
+        return fmt::format("{}:{}", ip_to_string(), port_);
+    }
+
     uint32_t ip_;
     uint16_t port_;
 };
 
+/*
 inline bool operator<(const Endpoint& endp1, const Endpoint& endp2) {
     return (endp1.port_ == endp2.port_) ? (endp1.ip_ < endp2.ip_)
                                         : (endp1.port_ < endp2.port_);
-}
-
-inline std::ostream& operator<<(std::ostream& stream, const Endpoint& endp) {
-    return stream << endp.ip_to_string() << ":" << endp.port_;
-}
+}*/
 
 typedef int RawDescriptorT;
-};  // namespace Socket
+};  // namespace networking
+
+inline std::ostream& operator<<(std::ostream& stream,
+                                const networking::Endpoint& endp) {
+    return stream << endp.ToString();
+}
+
+template <>
+struct fmt::formatter<networking::Endpoint> : fmt::formatter<std::string> {
+    inline auto format(const networking::Endpoint& endpoint,
+                fmt::format_context& ctx) const {
+        return fmt::formatter<std::string>::format(endpoint.ToString(), ctx);
+    }
+};

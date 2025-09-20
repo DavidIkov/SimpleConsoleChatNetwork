@@ -1,14 +1,11 @@
 #include "connection.hpp"
 
-#include <iostream>
+#include "spdlog/spdlog.h"
 
 namespace client {
 
-void ConnectionHandler::_OnDisconnect() {
-    std::cout << "other side disconnected" << std::endl;
-}
 void ConnectionHandler::Disconnect() {
-    std::cout << "client disconnected" << std::endl;
+    SPDLOG_INFO("Disconnected from server.");
     Base::Disconnect();
 }
 }  // namespace client

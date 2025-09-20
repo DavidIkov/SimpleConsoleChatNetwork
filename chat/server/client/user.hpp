@@ -1,4 +1,5 @@
 #pragma once
+#include "chat/server/users.hpp"
 #include "connection.hpp"
 
 namespace client {
@@ -11,19 +12,23 @@ public:
     UserHandler(UserHandler &&) noexcept = delete;
     UserHandler &operator=(UserHandler &&) noexcept = delete;
 
-    [[nodiscard]] inline bool IsLoggedIn() const;
-    [[nodiscard]] inline shared::User GetUser() const;
+    [[nodiscard]] bool IsLoggedIn() const;
+    void GetUser(std::function<void(const server::UserDB_Record &)> const
+                     &callback) const;
+
+    void Disconnect() override;
+
+    virtual void Logout();
 
 protected:
-    void _OnEvent(EventData const &ev_data) override;
-
-    virtual void _OnLogOut();
+    OutgoingRespond _ProcessRequest(IncomingRequest const &pack) override;
 
 private:
-    shared::User user_;
-};
+    mutable std::mutex mutex_;
 
-bool UserHandler::IsLoggedIn() const { return user_.id_; }
-shared::User UserHandler::GetUser() const { return user_; }
+    server::UserDB_Record user_;
+
+    void _Logout();
+};
 
 }  // namespace client

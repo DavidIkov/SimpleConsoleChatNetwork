@@ -1,14 +1,16 @@
 #include "base.hpp"
 
-#include <iostream>
+#include "spdlog/spdlog.h"
 
 namespace client {
 
 Base::Base(server::Base* server, ClientRawDescriptor desc)
-    : EventsHandler(desc), server_(server) {}
+    : EventsProcessor(desc), server_(server) {}
 
-void Base::_OnEvent(EventData const&) {
-    std::cout << "received unhandled event" << std::endl;
+auto Base::_ProcessRequest(IncomingRequest const& pack) -> OutgoingRespond {
+    SPDLOG_ERROR("Failed to process request respond, no one handled it. {}.",
+                 pack);
+    throw std::exception();
 }
 
 }  // namespace client

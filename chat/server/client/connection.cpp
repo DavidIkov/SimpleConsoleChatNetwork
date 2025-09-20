@@ -1,29 +1,28 @@
 #include "connection.hpp"
 
-#include <iostream>
-
 #include "chat/server/connections.hpp"
+#include "spdlog/spdlog.h"
 
 namespace client {
 ConnectionHandler::ConnectionHandler(server::Base* server,
                                      ClientRawDescriptor desc)
     : Base(server, desc) {
-    std::cout << "client joined" << std::endl;
+    SPDLOG_INFO("Client joined: {}.", GetRemoteAddress());
 }
-ConnectionHandler::~ConnectionHandler() {
-    std::cout << "client left" << std::endl;
-}
+ConnectionHandler::~ConnectionHandler() { SPDLOG_INFO("Client left."); }
 
-void ConnectionHandler::_OnDisconnect() {
-    std::thread([server = (server::ConnectionsHandler*)server_, ts = this,
-                 mutex = &mutex_] {
-        auto LG = server->AquireLock();
+void ConnectionHandler::Disconnect() {
+    std::thread([server = (server::ConnectionsHandler*)server_, ts = this] {
         size_t i = 0;
-        for (auto const& con : server->GetConnections()) {
-            if (con.get() == ts) break;
-            ++i;
-        }
+        server->GetConnections(
+            [&](std::vector<std::unique_ptr<Base>> const& cons) {
+                for (auto const& con : cons) {
+                    if (con.get() == ts) break;
+                    ++i;
+                }
+            });
         server->RemoveConnection(i);
     }).detach();
+    Base::Disconnect();
 }
 }  // namespace client

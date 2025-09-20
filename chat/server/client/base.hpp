@@ -1,9 +1,7 @@
 
 #pragma once
 
-#include <condition_variable>
-
-#include "chat/events_handler.hpp"
+#include "events/processor/processor.hpp"
 
 namespace server {
 class Base;
@@ -11,7 +9,7 @@ class Base;
 
 namespace client {
 
-class Base : protected EventsHandler {
+class Base : protected events::EventsProcessor {
 public:
     Base(server::Base *server, ClientRawDescriptor desc);
     ~Base() = default;
@@ -20,18 +18,22 @@ public:
     Base(Base &&) noexcept = delete;
     Base &operator=(Base &&) noexcept = delete;
 
-    using EventsHandler::AquireLock;
-    using EventsHandler::GetLocalAddress;
-    using EventsHandler::GetRemoteAddress;
-    using EventsHandler::IsConnected;
-    using EventsHandler::StopThreads;
+    using EventsProcessor::Connect;
+    using EventsProcessor::Disconnect;
+    using EventsProcessor::GetLocalAddress;
+    using EventsProcessor::GetRemoteAddress;
+    using EventsProcessor::IsConnected;
+    using EventsProcessor::SendRequest;
+    using EventsProcessor::WaitTillEndOfDataProcessing;
+    using EventsProcessor::OutgoingRequest;
+    using EventsProcessor::OutgoingRespond;
+    using EventsProcessor::IncomingRequest;
+    using EventsProcessor::IncomingRespond;
+
+
 
 protected:
+    OutgoingRespond _ProcessRequest(IncomingRequest const &pack) override;
     server::Base *server_;
-
-    void _OnEvent(EventData const &ev_data) override;
-
-    // cv that can be used to wait until some event reponse is processed.
-    std::condition_variable event_respond_cv_;
 };
 }  // namespace client

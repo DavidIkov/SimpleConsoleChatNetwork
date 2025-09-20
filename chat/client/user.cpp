@@ -1,113 +1,187 @@
 #include "user.hpp"
 
-#include <cstring>
-#include <iostream>
+#include <spdlog/spdlog.h>
+
+using namespace events::data_types;
 
 namespace client {
 
-void UserHandler::Login(const char *name, const char *password) {
-    if (!shared::CheckUserNameSyntax(name))
-        throw std::logic_error("incorrect room name syntax");
-    if (!shared::CheckUserPasswordSyntax(name))
-        throw std::logic_error("incorrect password syntax");
+void UserHandler::LogInUser(shared::id_t id, std::string_view password) {
+    if (!shared::CheckUserPasswordSyntax(password)) {
+        SPDLOG_ERROR(
+            "Failed to log in user. Incorrect password syntax. \"{}\".",
+            password);
+        throw std::exception();
+    }
+    if (IsLoggedIn()) {
+        SPDLOG_ERROR("Failed to log in user. Already logged in.");
+        throw std::exception();
+    }
 
-    if (waiting_for_login_respond_)
-        throw std::logic_error("already waiting for login respond");
-    if (IsLoggedIn()) throw std::logic_error("already logged in");
-
-    std::strcpy(user_.name_, name);
-
-    events::LoginAttempEvent login_attemp;
-    std::strcpy(login_attemp.name_, name);
-    std::strcpy(login_attemp.password_, password);
-    SendEvent(login_attemp);
-
-    waiting_for_login_respond_ = true;
-
-    std::unique_lock LG(mutex_, std::adopt_lock);
-    event_respond_cv_.wait(
-        LG, [&]() -> bool { return !waiting_for_login_respond_; });
-    LG.release();
+    IncomingRespond login_resp = SendRequest(OutgoingRequest(
+        "LogInUser",
+        {PacketData<INT64>(id), PacketData<STRING>(password.data())}));
+    switch (login_resp.GetUInt32(0)) {
+        case 0: {
+            UserDB_Record user_info = GetUserDBRecordByID(id);
+            if (!user_info.id_) {
+                SPDLOG_ERROR(
+                    "Failed to log in user. Could not get user database record "
+                    "from server.");
+                throw std::exception();
+            }
+            std::lock_guard LG(mutex_);
+            user_ = std::move(user_info);
+            SPDLOG_INFO("Logged into user: {}.", user_);
+            break;
+        }
+        case 1:
+            if (IsLoggedIn()) {
+                SPDLOG_ERROR(
+                    "Failed to log in user. Server says that user is already "
+                    "logged in. Client thinks the same. Why did client sent "
+                    "request?");
+                throw std::exception();
+            } else {
+                SPDLOG_ERROR(
+                    "Failed to log in user. Server says that user is already "
+                    "logged in. Client thinks the opposite. Possible desync.");
+                throw std::exception();
+            }
+        case 2:
+            SPDLOG_INFO(
+                "Failed to log in user. User is logged in by other client.");
+            break;
+        case 3:
+            SPDLOG_ERROR(
+                "Failed to log in user. User thinks that password which was "
+                "sent is correctly formatted, server thinks the opposite.");
+            throw std::exception();
+        case 4:
+            SPDLOG_INFO("Failed to log in user. Incorrect password.");
+            break;
+        case 5:
+            SPDLOG_INFO("Failed to log in user. ID does not exist.");
+            break;
+        default:
+            SPDLOG_ERROR("Failed to log in user. Unknown respond from server.");
+            throw std::exception();
+    }
 }
 
-void UserHandler::Logout() {
-    if (!IsLoggedIn()) throw std::logic_error("not logged in");
+void UserHandler::LogOutOfUser() {
+    if (!IsLoggedIn()) {
+        SPDLOG_ERROR("Failed to log out of user. Not logged in.");
+        throw std::exception();
+    }
 
-    _OnLogOut();
+    IncomingRespond logout_resp =
+        SendRequest(OutgoingRequest("LogOutOfUser", {}));
+
+    switch (logout_resp.GetUInt32(0)) {
+        case 0:
+            SPDLOG_INFO("Logged out of user: {}.", user_);
+            _Logout();
+            break;
+        case 1:
+            if (IsLoggedIn()) {
+                SPDLOG_ERROR(
+                    "Failed to log out of user. Server says that user is not "
+                    "logged in. Client thinks the opposite. Possible desync.");
+                throw std::exception();
+            } else {
+                SPDLOG_ERROR(
+                    "Failed to log out of user. Server says that user is not "
+                    "logged in. Client thinks the same. Why did client sent "
+                    "request?");
+                throw std::exception();
+            }
+        default:
+            SPDLOG_ERROR(
+                "Failed to log out of user. Unknown respond from server.");
+            throw std::exception();
+    }
+}
+
+void UserHandler::RegisterUser(std::string_view name,
+                               std::string_view password) const {
+    IncomingRespond register_resp = SendRequest(
+        OutgoingRequest("RegisterUser", {PacketData<STRING>(name.data()),
+                                         PacketData<STRING>(password.data())}));
+    switch (register_resp.GetUInt32(0)) {
+        case 0:
+            SPDLOG_INFO(
+                "Registered user with name: \"{}\" and password: \"{}\".", name,
+                password);
+            break;
+        case 1:
+            SPDLOG_ERROR(
+                "Failed to register user. User thinks that name which was "
+                "sent is correctly formatted, server thinks the opposite.");
+            throw std::exception();
+        case 2:
+            SPDLOG_ERROR(
+                "Failed to register user. User thinks that password which was "
+                "sent is correctly formatted, server thinks the opposite.");
+            throw std::exception();
+        case 3:
+            SPDLOG_INFO("Failed to register user. Name \"{}\" is already used.",
+                        name);
+            break;
+        default:
+            SPDLOG_ERROR(
+                "Failed to register user. Unknown respond from server.");
+            throw std::exception();
+    }
+}
+
+void UserHandler::_Logout() {
+    std::lock_guard LG(mutex_);
+    SPDLOG_INFO("Unlogged from {}.", user_);
     user_.id_ = 0;
-    SendEvent(events::LogoutEvent{});
 }
 
 void UserHandler::Disconnect() {
-    if (IsLoggedIn()) Logout();
+    if (IsLoggedIn()) _Logout();
     ConnectionHandler::Disconnect();
 }
 
-void UserHandler::_OnDisconnect() {
-    if (IsLoggedIn()) Logout();
-    ConnectionHandler::_OnDisconnect();
+bool UserHandler::IsLoggedIn() const {
+    std::lock_guard LG(mutex_);
+    return user_.id_;
 }
 
-void UserHandler::_OnEvent(EventData const &ev_data) {
-    if (ev_data.type_ == events::Type::LoginAttempRespond) {
-        if (!waiting_for_login_respond_) {
-            std::cout << "got login attemp respond, while not waiting for it"
-                      << std::endl;
-            return;
-        }
-        auto const &respond_data =
-            *(events::LoginAttempRespondEvent *)ev_data.data_;
-        if (respond_data.id_) {
-            user_.id_ = respond_data.id_;
-            switch (respond_data.response_) {
-                case events::LoginAttempRespondEvent::RespondType::LoggedIn:
-                    std::cout << "logged into " << user_ << std::endl;
-                    break;
-                case events::LoginAttempRespondEvent::RespondType::
-                    RegisteredAsNewUser:
-                    std::cout << "logged into " << user_ << " as new user"
-                              << std::endl;
-                    break;
-                default:
-                    std::cout << "logged in, unknown respond" << std::endl;
-            }
+UserDB_Record UserHandler::GetUser() const {
+    std::lock_guard LG(mutex_);
+    return user_;
+}
 
-        } else {
-            switch (respond_data.response_) {
-                case events::LoginAttempRespondEvent::RespondType::
-                    AlreadyLoggedIn:
-                    std::cout << "user is already logged in" << std::endl;
-                    break;
-                case events::LoginAttempRespondEvent::RespondType::
-                    IncorrectNameFormat:
-                    std::cout << "incorrect name format" << std::endl;
-                    break;
-                case events::LoginAttempRespondEvent::RespondType::
-                    IncorrectPasswordFormat:
-                    std::cout << "incorrect password format" << std::endl;
-                    break;
-                case events::LoginAttempRespondEvent::RespondType::
-                    WrongPassword:
-                    std::cout << "incorrect password" << std::endl;
-                    break;
-                case events::LoginAttempRespondEvent::RespondType::Unknown:
-                    std::cout << "unknown error" << std::endl;
-                    break;
-                default:
-                    std::cout << "failed to login, unknown respond"
-                              << std::endl;
-            }
-        }
-
-        waiting_for_login_respond_ = false;
-        event_respond_cv_.notify_all();
-
+UserDB_Record UserHandler::GetUserDBRecordByID(shared::id_t id) const {
+    IncomingRespond resp = SendRequest(
+        OutgoingRequest("GetUserDBRecord", {PacketData<INT64>(id)}));
+    if (resp.GetUInt32(0) == 0) {
+        UserDB_Record rec;
+        rec.id_ = id;
+        rec.online_ = resp.GetBool(1);
+        rec.name_ = resp.GetString(2);
+        rec.create_date_ = resp.GetString(3);
+        return rec;
     } else
-        ConnectionHandler::_OnEvent(ev_data);
+        return {0};
+}
+shared::id_t UserHandler::GetUserIDByName(std::string_view name) const {
+    IncomingRespond resp = SendRequest(
+        OutgoingRequest("GetUserIDByName", {PacketData<STRING>(name.data())}));
+    if (resp.GetUInt32(0) == 0)
+        return resp.GetInt64(1);
+    else
+        return 0;
 }
 
-void UserHandler::_OnLogOut() {
-    std::cout << "unlogged from " << user_ << std::endl;
+std::string UserDB_Record::ToString() const {
+    return fmt::format(
+        "[ name: \"{}\", id: {}, online: {}, creation date: {} ]", name_, id_,
+        online_ ? "true" : "false", create_date_);
 }
 
 }  // namespace client

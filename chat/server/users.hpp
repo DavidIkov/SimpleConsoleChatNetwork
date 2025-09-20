@@ -1,38 +1,57 @@
 #pragma once
+#include "chat/shared.hpp"
 #include "connections.hpp"
+#include "spdlog/fmt/bundled/format.h"
 
 namespace server {
+
+struct UserDB_Record {
+    shared::id_t id_ = 0;
+    bool online_;
+    std::string name_, password_, create_date_;
+
+    std::string ToString() const;
+};
+
 class UsersHandler : public ConnectionsHandler {
 public:
-    struct UserDB_Record {
-        shared::user_id_t id_;
-        char name_[shared::user_name_max_length];
-        char password_[shared::user_password_max_length];
-    };
+    UsersHandler();
 
-    [[nodiscard]] const UserDB_Record* GetUserFromDB_FromID(
-        shared::user_id_t id);
-    [[nodiscard]] const UserDB_Record* GetUserFromDB_FromUsername(
-        const char* username);
+    [[nodiscard]] UserDB_Record GetUserByID(shared::id_t id);
+    [[nodiscard]] shared::id_t GetUserIDByName(std::string_view name);
 
-    struct UserAddingResult {
-        shared::user_id_t id_;
+    enum class MarkUserResult { NoErrors, IDDoesNotExist };
+    [[nodiscard]] MarkUserResult MarkUserAsOnline(shared::id_t id);
+    [[nodiscard]] MarkUserResult MarkUserAsOffline(shared::id_t id);
+
+    struct UserRegisteringResult {
+        shared::id_t id_;
         enum class ResultType : uint8_t {
-            AddedInDB,
-            IncorrectUsernameFormat,
+            NoErrors,
+            NameAlreadyUsed,
+            IncorrectNameFormat,
             IncorrectPasswordFormat,
         } result_;
     };
-    [[nodiscard]] UserAddingResult AddUserToDB(const char* username,
-                                               const char* password);
+    [[nodiscard]] UserRegisteringResult RegisterUser(std::string_view name,
+                                                     std::string_view password);
 
 protected:
-    virtual std::unique_ptr<client::Base> _ConnectionFactory(
-        EventsHandler::ClientRawDescriptor desc);
-
-private:
-    uint32_t id_counter_ = 0;
-    // TEMPORARY, TODO IMPLEMENT DATABASE
-    std::vector<UserDB_Record> database_;
+    virtual std::unique_ptr<client::Base> _ClientFactory(
+        events::EventsProcessor::ClientRawDescriptor desc);
 };
+
 }  // namespace server
+
+template <>
+struct fmt::formatter<server::UserDB_Record> : fmt::formatter<std::string> {
+    auto format(const server::UserDB_Record& record,
+                fmt::format_context& ctx) const {
+        return fmt::formatter<std::string>::format(record.ToString(), ctx);
+    }
+};
+
+inline std::ostream& operator<<(std::ostream& stream,
+                                const server::UserDB_Record& record) {
+    return stream << record.ToString();
+}

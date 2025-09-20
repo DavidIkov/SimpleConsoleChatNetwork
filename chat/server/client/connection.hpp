@@ -2,7 +2,6 @@
 #pragma once
 
 #include "base.hpp"
-#include "chat/events_handler.hpp"
 
 namespace client {
 
@@ -15,10 +14,7 @@ public:
     ConnectionHandler(ConnectionHandler &&) noexcept = delete;
     ConnectionHandler &operator=(ConnectionHandler &&) noexcept = delete;
 
-    using EventsHandler::GetLocalAddress;
-    using EventsHandler::GetRemoteAddress;
-
 protected:
-    void _OnDisconnect() override final;
+    void Disconnect() override;
 };
 }  // namespace client

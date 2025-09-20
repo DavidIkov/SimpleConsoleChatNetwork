@@ -10,10 +10,6 @@ namespace client {
 RoomHandler::RoomHandler(server::Base *server, ClientRawDescriptor desc)
     : UserHandler(server, desc) {}
 
-RoomHandler::~RoomHandler(){
-    //TODO
-}
-
 void RoomHandler::_OnEvent(EventData const &ev_data) {
     if (ev_data.type_ == events::Type::JoinRoomAttemp) {
         auto &joinData = *(events::JoinRoomAttempEvent *)ev_data.data_;
@@ -58,10 +54,12 @@ void RoomHandler::_OnEvent(EventData const &ev_data) {
                 room_.id_ = found_record->id_;
                 std::memcpy(room_.name_, joinData.name_,
                             std::strlen(joinData.name_));
+
+                server.AddClientToRoom(room_.id_, *this);
             }
         } else {
             server::RoomsHandler::RoomAddingResult res =
-                server.AddRoomToDB(joinData.name_, joinData.password_);
+                server.AddRoom(joinData.name_, joinData.password_);
             if (res.id_) {
                 std::cout << GetUser() << " created a new room called "
                           << joinData.name_ << std::endl;
@@ -75,6 +73,7 @@ void RoomHandler::_OnEvent(EventData const &ev_data) {
                 std::memcpy(room_.name_, joinData.name_,
                             std::strlen(joinData.name_));
 
+                server.AddClientToRoom(room_.id_, *this);
             } else {
                 switch (res.result_) {
                     case server::RoomsHandler::RoomAddingResult::ResultType::
@@ -117,28 +116,39 @@ void RoomHandler::_OnEvent(EventData const &ev_data) {
                 }
             }
         }
-    } else if (ev_data.type_ == events::Type::LeaveRoom) {
-        if (!IsLoggedIn())
-            std::cout << GetRemoteAddress()
-                      << " tried to leave room while not logged in"
-                      << std::endl;
-        else if (IsInRoom()) {
-            std::cout << GetUser() << " left room " << GetRoom() << std::endl;
-            room_.id_ = 0;
-        } else
-            std::cout << GetUser() << " tried to leave room while not in room"
-                      << std::endl;
-    } else
+    } else if (ev_data.type_ == events::Type::LeaveRoom)
+        LeaveRoom();
+    else
         UserHandler::_OnEvent(ev_data);
 }
 
-void RoomHandler::_OnLogOut() {
-    if (IsInRoom()) {
-        std::cout << GetUser() << " left room " << room_ << " cause of log out "
+void RoomHandler::Logout() {
+    if (IsInRoom()) _LeaveRoom();
+    UserHandler::Logout();
+}
+
+void RoomHandler::LeaveRoom() {
+    if (!IsLoggedIn())
+        std::cout << GetRemoteAddress()
+                  << " tried to leave room while not logged in" << std::endl;
+    else if (IsInRoom())
+        _LeaveRoom();
+    else
+        std::cout << GetUser() << " tried to leave room while not in room"
                   << std::endl;
-        room_.id_ = 0;
-    }
-    UserHandler::_OnLogOut();
+}
+
+void RoomHandler::_LeaveRoom() {
+    std::cout << GetUser() << " left room " << GetRoom() << std::endl;
+    room_.id_ = 0;
+
+    auto LG = server_->AquireLock();
+    ((server::RoomsHandler *)server_)->RemoveClientFromRoom(room_.id_, *this);
+}
+
+void RoomHandler::Disconnect() {
+    if (IsInRoom()) _LeaveRoom();
+    UserHandler::Disconnect();
 }
 
 }  // namespace client

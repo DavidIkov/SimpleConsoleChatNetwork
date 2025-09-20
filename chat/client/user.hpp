@@ -1,9 +1,18 @@
 
 #pragma once
 
+#include "chat/shared.hpp"
 #include "connection.hpp"
 
 namespace client {
+
+struct UserDB_Record {
+    shared::id_t id_ = 0;
+    bool online_;
+    std::string name_, create_date_;
+
+    std::string ToString() const;
+};
 
 class UserHandler : public ConnectionHandler {
 public:
@@ -14,26 +23,36 @@ public:
     UserHandler(UserHandler &&) noexcept = delete;
     UserHandler &operator=(UserHandler &&) noexcept = delete;
 
-    void Login(const char *name, const char *password);
-    void Logout();
+    void LogInUser(shared::id_t id, std::string_view password);
+    virtual void LogOutOfUser();
+    void RegisterUser(std::string_view name, std::string_view password) const;
 
-    [[nodiscard]] inline bool IsLoggedIn() const;
-    [[nodiscard]] inline shared::User GetUser() const;
+    [[nodiscard]] bool IsLoggedIn() const;
+    [[nodiscard]] UserDB_Record GetUser() const;
 
     void Disconnect() override;
 
-protected:
-    void _OnEvent(EventData const &ev_data) override;
-    void _OnDisconnect() override;
-
-    virtual void _OnLogOut();
+    [[nodiscard]] UserDB_Record GetUserDBRecordByID(shared::id_t id) const;
+    [[nodiscard]] shared::id_t GetUserIDByName(std::string_view name) const;
 
 private:
-    shared::User user_;
-    bool waiting_for_login_respond_ = false;
+    UserDB_Record user_;
+    mutable std::mutex mutex_;
+
+    void _Logout();
 };
 
-bool UserHandler::IsLoggedIn() const { return user_.id_; }
-shared::User UserHandler::GetUser() const { return user_; }
-
 }  // namespace client
+
+template <>
+struct fmt::formatter<client::UserDB_Record> : fmt::formatter<std::string> {
+    auto format(const client::UserDB_Record &record,
+                fmt::format_context &ctx) const {
+        return fmt::formatter<std::string>::format(record.ToString(), ctx);
+    }
+};
+
+inline std::ostream &operator<<(std::ostream &stream,
+                                const client::UserDB_Record &record) {
+    return stream << record.ToString();
+}
