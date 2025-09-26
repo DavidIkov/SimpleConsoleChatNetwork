@@ -55,8 +55,8 @@ public:
             desc.fields_.push_back(TypeDescription<UINT32>());
             desc.max_size_ += TypeDescription<UINT32>().GetMaxSize();
         } else if (ctx->getText() == "uint64") {
-            desc.fields_.push_back(TypeDescription<UINT32>());
-            desc.max_size_ += TypeDescription<UINT32>().GetMaxSize();
+            desc.fields_.push_back(TypeDescription<UINT64>());
+            desc.max_size_ += TypeDescription<UINT64>().GetMaxSize();
         } else if (ctx->getText() == "float") {
             desc.fields_.push_back(TypeDescription<FLOAT>());
             desc.max_size_ += TypeDescription<FLOAT>().GetMaxSize();
@@ -260,7 +260,7 @@ Packet::Packet(EventDescription const& ev_desc, PacketType typ,
     if (offsets_.size() != desc_.get().fields_.size()) {
         SPDLOG_ERROR(
             "Packet is malformed. Amount of fields in packet, {},  does not "
-            "equal amount of fields in packet desc_.get().iption, {}.",
+            "equal amount of fields in packet description, {}.",
             offsets_.size(), desc_.get().fields_.size());
         throw std::exception();
     }

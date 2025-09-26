@@ -7,6 +7,12 @@ namespace client {
 UserHandler::UserHandler(server::Base *server, ClientRawDescriptor desc)
     : ConnectionHandler(server, desc) {}
 
+void UserHandler::GetUser(
+    std::function<void(const server::UserDB_Record &)> const &callback) const {
+    std::lock_guard LG(mutex_);
+    callback(user_);
+}
+
 auto UserHandler::_ProcessRequest(IncomingRequest const &pack)
     -> OutgoingRespond {
     server::UsersHandler &server = *(server::UsersHandler *)server_;
@@ -16,24 +22,26 @@ auto UserHandler::_ProcessRequest(IncomingRequest const &pack)
             return OutgoingRespond(
                 "GetUserIDByName",
                 {events::data_types::PacketData<events::data_types::UINT32>(2),
-                 events::data_types::PacketData<events::data_types::INT64>(0)});
+                 events::data_types::PacketData<events::data_types::UINT64>(
+                     0)});
         }
         shared::id_t usr_id = server.GetUserIDByName(pack.GetString(0));
         if (!usr_id) {
             return OutgoingRespond(
                 "GetUserIDByName",
                 {events::data_types::PacketData<events::data_types::UINT32>(1),
-                 events::data_types::PacketData<events::data_types::INT64>(0)});
+                 events::data_types::PacketData<events::data_types::UINT64>(
+                     0)});
         }
         return OutgoingRespond(
             "GetUserIDByName",
             {events::data_types::PacketData<events::data_types::UINT32>(0),
-             events::data_types::PacketData<events::data_types::INT64>(
+             events::data_types::PacketData<events::data_types::UINT64>(
                  usr_id)});
     } else if (pack.type_id_ ==
                events::GetEventDescriptionWithName("GetUserDBRecord")
                    .type_id_) {
-        server::UserDB_Record rec = server.GetUserByID(pack.GetInt64(0));
+        server::UserDB_Record rec = server.GetUserByID(pack.GetUInt64(0));
         if (!rec.id_) {
             return OutgoingRespond(
                 "GetUserDBRecord",
@@ -62,7 +70,7 @@ auto UserHandler::_ProcessRequest(IncomingRequest const &pack)
                     "RegisterUser",
                     {events::data_types::PacketData<events::data_types::UINT32>(
                          0),
-                     events::data_types::PacketData<events::data_types::INT64>(
+                     events::data_types::PacketData<events::data_types::UINT64>(
                          res.id_)});
             case decltype(res)::ResultType::IncorrectNameFormat:
                 return OutgoingRespond(
@@ -88,12 +96,14 @@ auto UserHandler::_ProcessRequest(IncomingRequest const &pack)
         }
     } else if (pack.type_id_ ==
                events::GetEventDescriptionWithName("LogInUser").type_id_) {
-        std::lock_guard LG(mutex_);
-        if (user_.id_) {
-            return OutgoingRespond(
-                "LogInUser",
-                {events::data_types::PacketData<events::data_types::UINT32>(
-                    1)});
+        {
+            std::lock_guard LG(mutex_);
+            if (user_.id_) {
+                return OutgoingRespond(
+                    "LogInUser",
+                    {events::data_types::PacketData<events::data_types::UINT32>(
+                        1)});
+            }
         }
         if (!shared::CheckUserPasswordSyntax(pack.GetString(1))) {
             return OutgoingRespond(
@@ -101,7 +111,7 @@ auto UserHandler::_ProcessRequest(IncomingRequest const &pack)
                 {events::data_types::PacketData<events::data_types::UINT32>(
                     3)});
         }
-        server::UserDB_Record rec = server.GetUserByID(pack.GetInt64(0));
+        server::UserDB_Record rec = server.GetUserByID(pack.GetUInt64(0));
         if (!rec.id_) {
             return OutgoingRespond(
                 "LogInUser",
@@ -139,8 +149,12 @@ auto UserHandler::_ProcessRequest(IncomingRequest const &pack)
                         6)});
             }
         }
-        rec.online_ = true;
-        user_ = std::move(rec);
+
+        {
+            std::lock_guard LG(mutex_);
+            rec.online_ = true;
+            user_ = std::move(rec);
+        }
 
         return OutgoingRespond(
             "LogInUser",
@@ -182,20 +196,16 @@ auto UserHandler::_ProcessRequest(IncomingRequest const &pack)
         return ConnectionHandler::_ProcessRequest(pack);
 }
 
-void UserHandler::Logout() {
-    if (IsLoggedIn())
-        _Logout();
-    else {
+void UserHandler::LogOutOfUser() {
+    if (IsLoggedIn()) {
+        std::lock_guard LG(mutex_);
+        SPDLOG_INFO("User {} logged out.", user_);
+        user_.id_ = 0;
+    } else {
         SPDLOG_ERROR("Failed to logout, client {} is not logged in.",
                      GetRemoteAddress());
         throw std::exception();
     }
-}
-
-void UserHandler::_Logout() {
-    std::lock_guard LG(mutex_);
-    SPDLOG_INFO("User {} logged out.", user_);
-    user_.id_ = 0;
 }
 
 bool UserHandler::IsLoggedIn() const {
@@ -204,7 +214,7 @@ bool UserHandler::IsLoggedIn() const {
 }
 
 void UserHandler::Disconnect() {
-    if (IsLoggedIn()) _Logout();
+    if (IsLoggedIn()) LogOutOfUser();
     ConnectionHandler::Disconnect();
 }
 

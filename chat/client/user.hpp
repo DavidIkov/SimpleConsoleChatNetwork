@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "chat/shared.hpp"
 #include "connection.hpp"
 
@@ -28,7 +30,8 @@ public:
     void RegisterUser(std::string_view name, std::string_view password) const;
 
     [[nodiscard]] bool IsLoggedIn() const;
-    [[nodiscard]] UserDB_Record GetUser() const;
+    void GetUser(
+        std::function<void(const UserDB_Record &)> const &callback) const;
 
     void Disconnect() override;
 
@@ -38,8 +41,6 @@ public:
 private:
     UserDB_Record user_;
     mutable std::mutex mutex_;
-
-    void _Logout();
 };
 
 }  // namespace client

@@ -2,13 +2,13 @@
 #include <vector>
 
 #include "events/parser/parse.hpp"
+#include "rooms.hpp"
 #include "spdlog/spdlog.h"
-#include "user.hpp"
 
 int main(int argc, char** argv) {
     spdlog::set_pattern("[%H:%M:%S.%e|%^%l%$|%P:%t|%s:%#] %v");
     events::ParseEventsConfig("events");
-    client::UserHandler client;
+    client::RoomsHandler client;
 
     std::string commandBuff;
     while (1) {
@@ -62,16 +62,27 @@ int main(int argc, char** argv) {
                                 std::cout << "no remote" << std::endl;
                         } else if (args[1] == "user") {
                             if (client.IsLoggedIn())
-                                std::cout << client.GetUser() << std::endl;
+                                client.GetUser(
+                                    [](const client::UserDB_Record& user) {
+                                        std::cout << user << std::endl;
+                                    });
                             else
                                 std::cout << "not logged in" << std::endl;
-                        } /*else if (args[1] == "room") {
-                            if (client.IsInRoom())
-                                std::cout << client.GetRoom() << std::endl;
-                            else
-                                std::cout << "not in room" << std::endl;
-                        } */
-                        else
+                        } else if (args[1] == "rooms") {
+                            client.GetRooms(
+                                [](std::map<shared::id_t,
+                                            client::RoomDB_Record> const&
+                                       rooms) {
+                                    if (rooms.size()) {
+                                        for (auto const& room : rooms) {
+                                            std::cout << room.second
+                                                      << std::endl;
+                                        }
+                                    } else
+                                        std::cout << "not in a single room"
+                                                  << std::endl;
+                                });
+                        } else
                             std::cout << "unknown arguments" << std::endl;
                     }
                 } else if (args[0] == "login") {
@@ -93,17 +104,33 @@ int main(int argc, char** argv) {
                     else {
                         client.RegisterUser(args[1], args[2]);
                     }
+                } else if (args[0] == "leave") {
+                    if (args.size() != 2)
+                        std::cout << "incorrect arguments amount" << std::endl;
+                    else {
+                        client.LeaveRoom(std::stoull(args[1]));
+                    }
+                } else if (args[0] == "join") {
+                    if (args.size() != 3)
+                        std::cout << "incorrect arguments amount" << std::endl;
+                    else {
+                        shared::id_t id = client.GetRoomIDByName(args[1]);
+                        if (!id)
+                            std::cout << "this room does not exist"
+                                      << std::endl;
+                        else
+                            client.JoinRoom(id, args[2]);
+                    }
                 } else if (args[0] == "create") {
                     if (args.size() < 2)
                         std::cout << "incorrect arguments amount" << std::endl;
                     else {
                         if (args[1] == "room") {
-                            /*if (args.size() != 4)
+                            if (args.size() != 4)
                                 std::cout << "incorrect arguments amount"
                                           << std::endl;
                             else
-                                client.CreateRoom(args[2],
-                                                  args[3]);*/
+                                client.CreateRoom(args[2], args[3]);
                         } else {
                             std::cout << "unknown arguments" << std::endl;
                         }

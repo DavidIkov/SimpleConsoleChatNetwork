@@ -8,13 +8,13 @@ event GetUserIDByName {
             NoErrors, NotFound,
             IncorrectNameFormat, Unknown
             ) response;
-        int64 id;
+        uint64 id;
     }
 }
 
 event GetUserDBRecord {
     request {
-        int64 id;
+        uint64 id;
     }
     respond {
         enum(
@@ -36,13 +36,13 @@ event RegisterUser {
             NoErrors, IncorrectNameFormat,
             IncorrectPasswordFormat, NameAlreadyUsed,
             Unknown) response;
-        int64 id;
+        uint64 id;
     }
 }
 
 event LogInUser {
     request {
-        int64 id;
+        uint64 id;
         string(16) password;
     }
     respond {
@@ -72,28 +72,58 @@ event CreateRoom {
             NoErrors, NotLoggedIn, NameAlreadyExists,
             IncorrectNameFormat, IncorrectPasswordFormat,
             Unknown) response;
-        int64 id;
+        uint64 id;
+    }
+}
+
+event GetRoomIDByName {
+    request {
+        string(16) name;
+    }
+    respond {
+        enum(
+            NoErrors, NotFound,
+            IncorrectNameFormat, Unknown
+            ) response;
+        uint64 id;
+    }
+}
+
+event GetRoomDBRecord {
+    request {
+        uint64 id;
+    }
+    respond {
+        enum(
+            NoErrors, IDDoesNotExist,
+            Unknown) response;
+        uint64 creator_id;
+        string(16) name;
+        string(20) creation_date;
+        uint32 users_amount;
     }
 }
 
 event JoinRoom {
     request {
-        int64 id;
+        uint64 id;
         string(16) password;
     }
     respond {
         enum(
-            NotLoggedIn, IncorrectNameFormat,
+            NoErrors, NotLoggedIn, AlreadyInThisRoom,
             IncorrectPasswordFormat, WrongPassword,
-            Unknown) response;
+            IDDoesNotExist, Unknown) response;
     }
 }
 
 event LeaveRoom {
-    request {}
+    request {
+        uint64 id;
+    }
     respond {
         enum(
-            LeftRoom, NotInRoom, Unknown
+            LeftRoom, NotInThisRoom, Unknown
             ) response;
     }
 }

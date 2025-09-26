@@ -4,7 +4,7 @@
 
 namespace shared {
 
-using id_t = int64_t;
+using id_t = uint64_t;
 
 static inline constexpr uint32_t user_name_max_length = 16;
 static inline constexpr uint32_t user_password_max_length = 16;

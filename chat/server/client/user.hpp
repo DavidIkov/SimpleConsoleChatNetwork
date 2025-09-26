@@ -13,12 +13,13 @@ public:
     UserHandler &operator=(UserHandler &&) noexcept = delete;
 
     [[nodiscard]] bool IsLoggedIn() const;
+
     void GetUser(std::function<void(const server::UserDB_Record &)> const
                      &callback) const;
 
     void Disconnect() override;
 
-    virtual void Logout();
+    virtual void LogOutOfUser();
 
 protected:
     OutgoingRespond _ProcessRequest(IncomingRequest const &pack) override;
@@ -27,8 +28,6 @@ private:
     mutable std::mutex mutex_;
 
     server::UserDB_Record user_;
-
-    void _Logout();
 };
 
 }  // namespace client

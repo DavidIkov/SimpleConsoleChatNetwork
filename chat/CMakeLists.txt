@@ -22,6 +22,8 @@ add_executable(
   client/connection.hpp
   client/user.hpp
   client/user.cpp
+  client/rooms.hpp
+  client/rooms.cpp
   client/main.cpp)
 target_link_libraries(chat_client events_processor SQLiteCpp)
 set_property(TARGET chat_client PROPERTY CXX_STANDARD 17)
@@ -39,12 +41,16 @@ add_executable(
   server/client/connection.hpp
   server/client/user.hpp
   server/client/user.cpp
+  server/client/rooms.hpp
+  server/client/rooms.cpp
   server/base.cpp
   server/base.hpp
   server/connections.cpp
   server/connections.hpp
   server/users.hpp
   server/users.cpp
+  server/rooms.hpp
+  server/rooms.cpp
   server/main.cpp)
 target_link_libraries(chat_server events_processor SQLiteCpp)
 set_property(TARGET chat_server PROPERTY CXX_STANDARD 17)

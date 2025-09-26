@@ -20,12 +20,8 @@ UsersHandler::UsersHandler() {
             CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             online INTEGER NOT NULL,
-            name VARCHAR()-" +
-                    std::to_string(shared::user_name_max_length) +
-                    R"-() NOT NULL UNIQUE,
-            password VARCHAR()-" +
-                    std::to_string(shared::user_password_max_length) +
-                    R"-() NOT NULL,
+            name TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
             create_date DATETIME DEFAULT CURRENT_TIMESTAMP
             ))-");
 
@@ -47,7 +43,7 @@ UserDB_Record UsersHandler::GetUserByID(shared::id_t id) {
                 db,
                 "SELECT online, name, password, "
                 "create_date FROM users WHERE id = ?");
-            getting_user.bind(1, id);
+            getting_user.bind(1, (int64_t)id);
 
             if (getting_user.executeStep()) {
                 bool online = getting_user.getColumn(0).getInt();
@@ -64,6 +60,24 @@ UserDB_Record UsersHandler::GetUserByID(shared::id_t id) {
     });
     return record;
 }
+
+bool UsersHandler::UserIDExists(shared::id_t id) {
+    bool exists = false;
+    GetDB([&](SQLite::Database& db) {
+        try {
+            SQLite::Statement check_user(db, "SELECT 1 FROM users WHERE id = ?");
+            check_user.bind(1, (int64_t)id);
+            if (check_user.executeStep()) {
+                exists = true;
+            }
+        } catch (std::exception& err) {
+            SPDLOG_ERROR("Failed to check if user id exists. Error: {}",
+                         err.what());
+            throw;
+        }
+    });
+    return exists;
+}
 shared::id_t UsersHandler::GetUserIDByName(std::string_view name) {
     shared::id_t ret_id = 0;
     GetDB([&](SQLite::Database& db) {
@@ -73,7 +87,8 @@ shared::id_t UsersHandler::GetUserIDByName(std::string_view name) {
             getting_user.bind(1, name.data());
 
             if (getting_user.executeStep()) {
-                shared::id_t id = getting_user.getColumn(0);
+                shared::id_t id =
+                    (uint64_t)getting_user.getColumn(0).getInt64();
                 ret_id = id;
             }
         } catch (std::exception& err) {
@@ -121,7 +136,7 @@ auto UsersHandler::MarkUserAsOnline(shared::id_t id) -> MarkUserResult {
         try {
             SQLite::Statement mark_user(
                 db, "UPDATE users SET online = 1 WHERE id = ?");
-            mark_user.bind(1, id);
+            mark_user.bind(1, (int64_t)id);
             int rows_affected = mark_user.exec();
             if (rows_affected == 0)
                 res = MarkUserResult::IDDoesNotExist;
@@ -148,7 +163,7 @@ auto UsersHandler::MarkUserAsOffline(shared::id_t id) -> MarkUserResult {
         try {
             SQLite::Statement mark_user(
                 db, "UPDATE users SET online = 0 WHERE id = ?");
-            mark_user.bind(1, id);
+            mark_user.bind(1, (int64_t)id);
             int rows_affected = mark_user.exec();
             if (rows_affected == 0)
                 res = MarkUserResult::IDDoesNotExist;

@@ -23,19 +23,13 @@ struct Endpoint {
                std::to_string(ip_ & 0xFF);
     }
 
-    std::string ToString() const {
+    inline std::string ToString() const {
         return fmt::format("{}:{}", ip_to_string(), port_);
     }
 
     uint32_t ip_;
     uint16_t port_;
 };
-
-/*
-inline bool operator<(const Endpoint& endp1, const Endpoint& endp2) {
-    return (endp1.port_ == endp2.port_) ? (endp1.ip_ < endp2.ip_)
-                                        : (endp1.port_ < endp2.port_);
-}*/
 
 typedef int RawDescriptorT;
 };  // namespace networking
@@ -48,7 +42,7 @@ inline std::ostream& operator<<(std::ostream& stream,
 template <>
 struct fmt::formatter<networking::Endpoint> : fmt::formatter<std::string> {
     inline auto format(const networking::Endpoint& endpoint,
-                fmt::format_context& ctx) const {
+                       fmt::format_context& ctx) const {
         return fmt::formatter<std::string>::format(endpoint.ToString(), ctx);
     }
 };

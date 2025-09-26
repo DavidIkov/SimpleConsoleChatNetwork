@@ -19,6 +19,7 @@ public:
 
     [[nodiscard]] UserDB_Record GetUserByID(shared::id_t id);
     [[nodiscard]] shared::id_t GetUserIDByName(std::string_view name);
+    [[nodiscard]] bool UserIDExists(shared::id_t id);
 
     enum class MarkUserResult { NoErrors, IDDoesNotExist };
     [[nodiscard]] MarkUserResult MarkUserAsOnline(shared::id_t id);
@@ -37,8 +38,8 @@ public:
                                                      std::string_view password);
 
 protected:
-    virtual std::unique_ptr<client::Base> _ClientFactory(
-        events::EventsProcessor::ClientRawDescriptor desc);
+    std::unique_ptr<client::Base> _ClientFactory(
+        events::EventsProcessor::ClientRawDescriptor desc) override;
 };
 
 }  // namespace server
